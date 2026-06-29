@@ -1,0 +1,23 @@
+import { ApiResponse, PaginatedResponse } from '../interfaces/api-response.interface';
+
+export const successResponse = <T>(message: string, data?: T): ApiResponse<T> => ({
+  success: true,
+  message,
+  data,
+});
+
+export const errorResponse = (message: string | string[]): ApiResponse => ({
+  success: false,
+  message,
+});
+
+export const paginatedResponse = <T>(
+  message: string,
+  data: T[],
+  meta: PaginatedResponse['meta'],
+): PaginatedResponse<T> => ({
+  success: true,
+  message,
+  data,
+  meta,
+});
