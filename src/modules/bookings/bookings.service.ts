@@ -16,13 +16,17 @@ import {
   services,
 } from '../../db/schema';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { PayoutsService } from '../payouts/payouts.service';
 
 type Db = NodePgDatabase<typeof schema>;
 type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
 @Injectable()
 export class BookingsService {
-  constructor(@Inject(DRIZZLE) private db: Db) {}
+  constructor(
+    @Inject(DRIZZLE) private db: Db,
+    private payoutsService: PayoutsService,
+  ) {}
 
   private async getCustomerProfile(userId: string) {
     const profile = await this.db.query.customerProfiles.findFirst({
@@ -53,7 +57,10 @@ export class BookingsService {
     return booking;
   }
 
-  private assertStatus(booking: { status: BookingStatus }, allowed: BookingStatus[]) {
+  private assertStatus(
+    booking: { status: BookingStatus },
+    allowed: BookingStatus[],
+  ) {
     if (!allowed.includes(booking.status)) {
       throw new BadRequestException(
         `Cannot perform this action on a booking with status "${booking.status}"`,
@@ -76,7 +83,10 @@ export class BookingsService {
         eq(services.isActive, true),
       ),
     });
-    if (!service) throw new NotFoundException('Service not found or not available');
+    if (!service)
+      throw new NotFoundException('Service not found or not available');
+
+    await this.payoutsService.assertProviderPayable(provider.id);
 
     const [booking] = await this.db
       .insert(bookings)
@@ -127,7 +137,8 @@ export class BookingsService {
     const provider = await this.getProviderProfile(userId);
     const booking = await this.getBookingOrThrow(bookingId);
 
-    if (booking.providerId !== provider.id) throw new ForbiddenException('Not your booking');
+    if (booking.providerId !== provider.id)
+      throw new ForbiddenException('Not your booking');
     this.assertStatus(booking, ['pending']);
 
     const [updated] = await this.db
@@ -162,7 +173,8 @@ export class BookingsService {
     const provider = await this.getProviderProfile(userId);
     const booking = await this.getBookingOrThrow(bookingId);
 
-    if (booking.providerId !== provider.id) throw new ForbiddenException('Not your booking');
+    if (booking.providerId !== provider.id)
+      throw new ForbiddenException('Not your booking');
     this.assertStatus(booking, ['confirmed']);
 
     const [updated] = await this.db

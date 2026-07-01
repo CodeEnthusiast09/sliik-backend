@@ -10,6 +10,7 @@ import { ServicesModule } from './modules/services/services.module';
 import { AvailabilityModule } from './modules/availability/availability.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { PayoutsModule } from './modules/payouts/payouts.module';
 import { OffersModule } from './modules/offers/offers.module';
 import { DealsModule } from './modules/deals/deals.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
@@ -27,6 +28,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     AvailabilityModule,
     BookingsModule,
     PaymentsModule,
+    PayoutsModule,
     OffersModule,
     DealsModule,
     ReviewsModule,

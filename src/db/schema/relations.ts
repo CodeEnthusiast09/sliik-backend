@@ -12,6 +12,7 @@ import { sliikDeals } from './deals';
 import { conversations, messages } from './chat';
 import { payments } from './payments';
 import { notifications } from './notifications';
+import { providerPayoutAccounts } from './payouts';
 
 export const usersRelations = relations(users, ({ one }) => ({
   customerProfile: one(customerProfiles, {
@@ -50,6 +51,10 @@ export const providerProfilesRelations = relations(
     bookings: many(bookings),
     deals: many(sliikDeals),
     offerResponses: many(sliikOfferResponses),
+    payoutAccount: one(providerPayoutAccounts, {
+      fields: [providerProfiles.id],
+      references: [providerPayoutAccounts.providerId],
+    }),
   }),
 );
 
@@ -190,3 +195,13 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, { fields: [notifications.userId], references: [users.id] }),
 }));
+
+export const providerPayoutAccountsRelations = relations(
+  providerPayoutAccounts,
+  ({ one }) => ({
+    provider: one(providerProfiles, {
+      fields: [providerPayoutAccounts.providerId],
+      references: [providerProfiles.id],
+    }),
+  }),
+);

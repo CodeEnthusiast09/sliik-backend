@@ -20,7 +20,11 @@ export class PaymentsController {
     @CurrentUser() user: AuthUser,
     @Body() dto: InitiatePaymentDto,
   ) {
-    const data = await this.paymentsService.initiatePayment(user.id, dto);
+    const data = await this.paymentsService.initiatePayment(
+      user.id,
+      user.email,
+      dto,
+    );
     return successResponse('Payment initiated', data);
   }
 

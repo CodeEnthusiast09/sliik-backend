@@ -18,12 +18,16 @@ import {
 } from '../../db/schema';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { RespondToOfferDto } from './dto/respond-to-offer.dto';
+import { PayoutsService } from '../payouts/payouts.service';
 
 type Db = NodePgDatabase<typeof schema>;
 
 @Injectable()
 export class OffersService {
-  constructor(@Inject(DRIZZLE) private db: Db) {}
+  constructor(
+    @Inject(DRIZZLE) private db: Db,
+    private payoutsService: PayoutsService,
+  ) {}
 
   private async getCustomerProfile(userId: string) {
     const profile = await this.db.query.customerProfiles.findFirst({
@@ -95,7 +99,8 @@ export class OffersService {
 
     if (role === 'customer') {
       const customer = await this.getCustomerProfile(userId);
-      if (offer.customerId !== customer.id) throw new ForbiddenException('Access denied');
+      if (offer.customerId !== customer.id)
+        throw new ForbiddenException('Access denied');
     }
 
     return offer;
@@ -108,9 +113,12 @@ export class OffersService {
       where: eq(sliikOffers.id, offerId),
     });
     if (!offer) throw new NotFoundException('Offer not found');
-    if (offer.customerId !== customer.id) throw new ForbiddenException('Not your offer');
+    if (offer.customerId !== customer.id)
+      throw new ForbiddenException('Not your offer');
     if (offer.status !== 'open') {
-      throw new BadRequestException(`Cannot cancel an offer with status "${offer.status}"`);
+      throw new BadRequestException(
+        `Cannot cancel an offer with status "${offer.status}"`,
+      );
     }
 
     const [updated] = await this.db
@@ -122,7 +130,11 @@ export class OffersService {
     return updated;
   }
 
-  async respondToOffer(userId: string, offerId: string, dto: RespondToOfferDto) {
+  async respondToOffer(
+    userId: string,
+    offerId: string,
+    dto: RespondToOfferDto,
+  ) {
     const provider = await this.getProviderProfile(userId);
 
     const offer = await this.db.query.sliikOffers.findFirst({
@@ -139,7 +151,8 @@ export class OffersService {
         eq(sliikOfferResponses.providerId, provider.id),
       ),
     });
-    if (alreadyResponded) throw new BadRequestException('You have already responded to this offer');
+    if (alreadyResponded)
+      throw new BadRequestException('You have already responded to this offer');
 
     const [response] = await this.db
       .insert(sliikOfferResponses)
@@ -161,9 +174,12 @@ export class OffersService {
       where: eq(sliikOffers.id, offerId),
     });
     if (!offer) throw new NotFoundException('Offer not found');
-    if (offer.customerId !== customer.id) throw new ForbiddenException('Not your offer');
+    if (offer.customerId !== customer.id)
+      throw new ForbiddenException('Not your offer');
     if (offer.status !== 'open') {
-      throw new BadRequestException(`Cannot accept a response on an offer with status "${offer.status}"`);
+      throw new BadRequestException(
+        `Cannot accept a response on an offer with status "${offer.status}"`,
+      );
     }
 
     const response = await this.db.query.sliikOfferResponses.findFirst({
@@ -176,6 +192,8 @@ export class OffersService {
     if (response.status !== 'pending') {
       throw new BadRequestException('This response has already been processed');
     }
+
+    await this.payoutsService.assertProviderPayable(response.providerId);
 
     let createdBooking: typeof bookings.$inferSelect;
 

@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
   ForbiddenException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { errorResponse } from '../utils/response.helper';
@@ -28,6 +29,8 @@ function resolveErrorType(exception: HttpException): string {
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(GlobalExceptionFilter.name);
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -55,6 +58,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       return response.status(status).json(errorResponse(message, errorType));
     }
 
+    this.logger.error(exception);
     return response
       .status(HttpStatus.INTERNAL_SERVER_ERROR)
       .json(errorResponse('Something went wrong', 'ServerError'));

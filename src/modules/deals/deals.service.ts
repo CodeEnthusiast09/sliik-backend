@@ -19,12 +19,16 @@ import {
 import { CreateDealDto } from './dto/create-deal.dto';
 import { UpdateDealDto } from './dto/update-deal.dto';
 import { ClaimDealDto } from './dto/claim-deal.dto';
+import { PayoutsService } from '../payouts/payouts.service';
 
 type Db = NodePgDatabase<typeof schema>;
 
 @Injectable()
 export class DealsService {
-  constructor(@Inject(DRIZZLE) private db: Db) {}
+  constructor(
+    @Inject(DRIZZLE) private db: Db,
+    private payoutsService: PayoutsService,
+  ) {}
 
   private async getProviderProfile(userId: string) {
     const profile = await this.db.query.providerProfiles.findFirst({
@@ -46,12 +50,20 @@ export class DealsService {
     const provider = await this.getProviderProfile(userId);
 
     const service = await this.db.query.services.findFirst({
-      where: and(eq(services.id, dto.serviceId), eq(services.providerId, provider.id)),
+      where: and(
+        eq(services.id, dto.serviceId),
+        eq(services.providerId, provider.id),
+      ),
     });
-    if (!service) throw new NotFoundException('Service not found or does not belong to you');
+    if (!service)
+      throw new NotFoundException(
+        'Service not found or does not belong to you',
+      );
 
     if (dto.dealPrice >= dto.originalPrice) {
-      throw new BadRequestException('Deal price must be lower than original price');
+      throw new BadRequestException(
+        'Deal price must be lower than original price',
+      );
     }
 
     const expiresAt = new Date(dto.expiresAt);
@@ -114,7 +126,8 @@ export class DealsService {
       where: eq(sliikDeals.id, dealId),
     });
     if (!deal) throw new NotFoundException('Deal not found');
-    if (deal.providerId !== provider.id) throw new ForbiddenException('Not your deal');
+    if (deal.providerId !== provider.id)
+      throw new ForbiddenException('Not your deal');
 
     if (dto.expiresAt) {
       const expiresAt = new Date(dto.expiresAt);
@@ -125,15 +138,21 @@ export class DealsService {
 
     if (dto.dealPrice !== undefined && dto.originalPrice !== undefined) {
       if (dto.dealPrice >= dto.originalPrice) {
-        throw new BadRequestException('Deal price must be lower than original price');
+        throw new BadRequestException(
+          'Deal price must be lower than original price',
+        );
       }
     } else if (dto.dealPrice !== undefined) {
       if (dto.dealPrice >= Number(deal.originalPrice)) {
-        throw new BadRequestException('Deal price must be lower than original price');
+        throw new BadRequestException(
+          'Deal price must be lower than original price',
+        );
       }
     } else if (dto.originalPrice !== undefined) {
       if (Number(deal.dealPrice) >= dto.originalPrice) {
-        throw new BadRequestException('Deal price must be lower than original price');
+        throw new BadRequestException(
+          'Deal price must be lower than original price',
+        );
       }
     }
 
@@ -142,9 +161,15 @@ export class DealsService {
       .set({
         ...(dto.title !== undefined && { title: dto.title }),
         ...(dto.description !== undefined && { description: dto.description }),
-        ...(dto.originalPrice !== undefined && { originalPrice: dto.originalPrice.toFixed(2) }),
-        ...(dto.dealPrice !== undefined && { dealPrice: dto.dealPrice.toFixed(2) }),
-        ...(dto.expiresAt !== undefined && { expiresAt: new Date(dto.expiresAt) }),
+        ...(dto.originalPrice !== undefined && {
+          originalPrice: dto.originalPrice.toFixed(2),
+        }),
+        ...(dto.dealPrice !== undefined && {
+          dealPrice: dto.dealPrice.toFixed(2),
+        }),
+        ...(dto.expiresAt !== undefined && {
+          expiresAt: new Date(dto.expiresAt),
+        }),
         updatedAt: new Date(),
       })
       .where(eq(sliikDeals.id, dealId))
@@ -160,7 +185,8 @@ export class DealsService {
       where: eq(sliikDeals.id, dealId),
     });
     if (!deal) throw new NotFoundException('Deal not found');
-    if (deal.providerId !== provider.id) throw new ForbiddenException('Not your deal');
+    if (deal.providerId !== provider.id)
+      throw new ForbiddenException('Not your deal');
 
     await this.db.delete(sliikDeals).where(eq(sliikDeals.id, dealId));
   }
@@ -172,8 +198,12 @@ export class DealsService {
       where: eq(sliikDeals.id, dealId),
     });
     if (!deal) throw new NotFoundException('Deal not found');
-    if (deal.slotsRemaining <= 0) throw new BadRequestException('No slots remaining for this deal');
-    if (deal.expiresAt <= new Date()) throw new BadRequestException('This deal has expired');
+    if (deal.slotsRemaining <= 0)
+      throw new BadRequestException('No slots remaining for this deal');
+    if (deal.expiresAt <= new Date())
+      throw new BadRequestException('This deal has expired');
+
+    await this.payoutsService.assertProviderPayable(deal.providerId);
 
     let createdBooking: typeof bookings.$inferSelect;
 

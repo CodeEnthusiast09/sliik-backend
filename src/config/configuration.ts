@@ -30,6 +30,13 @@ export default () => ({
     cancelUrl: process.env.PAYMENT_CANCEL_URL,
   },
 
+  payout: {
+    platformCommissionPercent: parseInt(
+      process.env.PLATFORM_COMMISSION_PERCENT ?? '10',
+      10,
+    ),
+  },
+
   cloudinary: {
     cloudName: process.env.CLOUDINARY_CLOUD_NAME,
     apiKey: process.env.CLOUDINARY_API_KEY,

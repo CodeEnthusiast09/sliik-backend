@@ -14,6 +14,7 @@ import { DRIZZLE } from '../../db';
 import * as schema from '../../db/schema';
 import { bookings, customerProfiles, payments } from '../../db/schema';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
+import { PayoutsService } from '../payouts/payouts.service';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -23,9 +24,14 @@ export class PaymentsService {
     @Inject(DRIZZLE) private db: Db,
     private config: ConfigService,
     private http: HttpService,
+    private payoutsService: PayoutsService,
   ) {}
 
-  async initiatePayment(userId: string, dto: InitiatePaymentDto) {
+  async initiatePayment(
+    userId: string,
+    email: string,
+    dto: InitiatePaymentDto,
+  ) {
     const customer = await this.db.query.customerProfiles.findFirst({
       where: eq(customerProfiles.userId, userId),
     });
@@ -49,14 +55,24 @@ export class PaymentsService {
       );
     }
 
-    return this.initiatePaystack(booking, customer.fullName, dto.bookingId);
+    return this.initiatePaystack(
+      booking,
+      email,
+      customer.fullName,
+      dto.bookingId,
+    );
   }
 
   private async initiatePaystack(
     booking: { id: string; totalAmount: string; providerId: string },
+    email: string,
     customerName: string,
     bookingId: string,
   ) {
+    const payoutAccount = await this.payoutsService.assertProviderPayable(
+      booking.providerId,
+    );
+
     const amountInKobo = Math.round(parseFloat(booking.totalAmount) * 100);
     const reference = `sliik_${bookingId}_${Date.now()}`;
 
@@ -64,10 +80,12 @@ export class PaymentsService {
       this.http.post(
         'https://api.paystack.co/transaction/initialize',
         {
+          email,
           amount: amountInKobo,
           currency: 'NGN',
           reference,
           metadata: { bookingId, customerName },
+          subaccount: payoutAccount.paystackSubaccountCode,
           callback_url: this.config.getOrThrow('payment.successUrl'),
         },
         {

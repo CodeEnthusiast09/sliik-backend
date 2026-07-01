@@ -15,6 +15,13 @@
       "when": 1782943628295,
       "tag": "0001_daffy_riptide",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782944052982,
+      "tag": "0002_many_cerise",
+      "breakpoints": true
     }
   ]
 }

@@ -53,6 +53,12 @@ class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   PAYMENT_CANCEL_URL: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  PLATFORM_COMMISSION_PERCENT?: number;
 }
 
 export function validate(config: Record<string, unknown>) {
