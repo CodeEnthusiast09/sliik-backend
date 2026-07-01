@@ -21,11 +21,6 @@ export default () => ({
     privateKey: process.env.APPLE_PRIVATE_KEY,
   },
 
-  stripe: {
-    secretKey: process.env.STRIPE_SECRET_KEY,
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-  },
-
   paystack: {
     secretKey: process.env.PAYSTACK_SECRET_KEY,
   },

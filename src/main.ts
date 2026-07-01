@@ -6,8 +6,8 @@ import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  // rawBody: true populates req.rawBody on every request (used by the Stripe
-  // webhook signature check) without disrupting normal JSON parsing elsewhere.
+  // rawBody: true populates req.rawBody on every request (used by the
+  // Paystack webhook signature check) without disrupting normal JSON parsing elsewhere.
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.setGlobalPrefix('api');

@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Headers,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
-import type { RawBodyRequest } from '@nestjs/common';
-import type { Request } from 'express';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -31,15 +22,6 @@ export class PaymentsController {
   ) {
     const data = await this.paymentsService.initiatePayment(user.id, dto);
     return successResponse('Payment initiated', data);
-  }
-
-  @Post('webhook/stripe')
-  async stripeWebhook(
-    @Req() req: RawBodyRequest<Request>,
-    @Headers('stripe-signature') signature: string,
-  ) {
-    await this.paymentsService.handleStripeWebhook(req.rawBody!, signature);
-    return { received: true };
   }
 
   @Post('webhook/paystack')

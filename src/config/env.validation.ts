@@ -36,17 +36,11 @@ class EnvironmentVariables {
   @IsNotEmpty()
   GOOGLE_CLIENT_ID: string;
 
+  // Deferred until sliik-mobile is scaffolded and a Bundle ID is chosen -
+  // Apple Sign-In's client ID is inherently tied to that decision.
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  APPLE_CLIENT_ID: string;
-
-  @IsString()
-  @IsNotEmpty()
-  STRIPE_SECRET_KEY: string;
-
-  @IsString()
-  @IsNotEmpty()
-  STRIPE_WEBHOOK_SECRET: string;
+  APPLE_CLIENT_ID?: string;
 
   @IsString()
   @IsNotEmpty()
