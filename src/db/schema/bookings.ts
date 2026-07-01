@@ -25,7 +25,7 @@ export const bookings = pgTable('bookings', {
   id: uuid('id').primaryKey().defaultRandom(),
   customerId: uuid('customer_id').notNull().references(() => customerProfiles.id, { onDelete: 'restrict' }),
   providerId: uuid('provider_id').notNull().references(() => providerProfiles.id, { onDelete: 'restrict' }),
-  serviceId: uuid('service_id').notNull().references(() => services.id, { onDelete: 'restrict' }),
+  serviceId: uuid('service_id').references(() => services.id, { onDelete: 'restrict' }),
   status: bookingStatusEnum('status').notNull().default('pending'),
   scheduledAt: timestamp('scheduled_at').notNull(),
   notes: text('notes'),
