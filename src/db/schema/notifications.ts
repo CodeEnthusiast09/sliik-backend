@@ -1,0 +1,36 @@
+import {
+  pgTable,
+  uuid,
+  text,
+  jsonb,
+  timestamp,
+  pgEnum,
+} from 'drizzle-orm/pg-core';
+import { users } from './users';
+
+export const notificationTypeEnum = pgEnum('notification_type', [
+  'booking_created',
+  'booking_confirmed',
+  'booking_cancelled',
+  'booking_completed',
+  'offer_received',
+  'offer_accepted',
+  'deal_claimed',
+  'payment_received',
+  'review_received',
+  'message_received',
+  'system',
+]);
+
+export const notifications = pgTable('notifications', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  type: notificationTypeEnum('type').notNull(),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  data: jsonb('data'),
+  readAt: timestamp('read_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});

@@ -10,4 +10,5 @@ export * from './deals';
 export * from './portfolio';
 export * from './chat';
 export * from './payments';
+export * from './notifications';
 export * from './relations';
