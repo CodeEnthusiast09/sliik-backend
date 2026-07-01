@@ -1,25 +1,8 @@
-import { IsBoolean, IsNumber, IsOptional, IsPositive, IsString, MaxLength, Min } from 'class-validator';
+import { PartialType } from '@nestjs/mapped-types';
+import { IsBoolean, IsOptional } from 'class-validator';
+import { CreateServiceDto } from './create-service.dto';
 
-export class UpdateServiceDto {
-  @IsString()
-  @IsOptional()
-  @MaxLength(255)
-  name?: string;
-
-  @IsString()
-  @IsOptional()
-  description?: string;
-
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @IsPositive()
-  @IsOptional()
-  price?: number;
-
-  @IsNumber()
-  @Min(1)
-  @IsOptional()
-  durationMinutes?: number;
-
+export class UpdateServiceDto extends PartialType(CreateServiceDto) {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
