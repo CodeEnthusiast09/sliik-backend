@@ -35,7 +35,7 @@ export class AuthService {
     private config: ConfigService,
   ) {
     this.googleClient = new OAuth2Client(
-      config.getOrThrow<string>('GOOGLE_CLIENT_ID'),
+      config.getOrThrow<string>('google.clientId'),
     );
   }
 
@@ -88,7 +88,7 @@ export class AuthService {
     const ticket = await this.googleClient
       .verifyIdToken({
         idToken: dto.idToken,
-        audience: this.config.getOrThrow<string>('GOOGLE_CLIENT_ID'),
+        audience: this.config.getOrThrow<string>('google.clientId'),
       })
       .catch(() => {
         throw new UnauthorizedException('Invalid Google token');
@@ -108,7 +108,7 @@ export class AuthService {
   async appleAuth(dto: AppleAuthDto) {
     const { payload } = await jwtVerify(dto.identityToken, APPLE_JWKS, {
       issuer: 'https://appleid.apple.com',
-      audience: this.config.getOrThrow<string>('APPLE_CLIENT_ID'),
+      audience: this.config.getOrThrow<string>('apple.clientId'),
     }).catch(() => {
       throw new UnauthorizedException('Invalid Apple token');
     });
@@ -117,7 +117,9 @@ export class AuthService {
 
     return this.findOrCreateSocialUser({
       appleId: payload.sub,
-      email: (payload['email'] as string) ?? `${payload.sub}@privaterelay.appleid.com`,
+      email:
+        (payload['email'] as string) ??
+        `${payload.sub}@privaterelay.appleid.com`,
       fullName: dto.fullName ?? 'User',
       role: dto.role,
     });
@@ -139,7 +141,11 @@ export class AuthService {
     });
 
     if (existing) {
-      return this.buildTokenResponse(existing.id, existing.email, existing.role);
+      return this.buildTokenResponse(
+        existing.id,
+        existing.email,
+        existing.role,
+      );
     }
 
     return this.db.transaction(async (tx) => {

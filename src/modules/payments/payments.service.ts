@@ -14,7 +14,10 @@ import { firstValueFrom } from 'rxjs';
 import { DRIZZLE } from '../../db';
 import * as schema from '../../db/schema';
 import { bookings, customerProfiles, payments } from '../../db/schema';
-import { InitiatePaymentDto, PaymentProvider } from './dto/initiate-payment.dto';
+import {
+  InitiatePaymentDto,
+  PaymentProvider,
+} from './dto/initiate-payment.dto';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -30,7 +33,9 @@ export class PaymentsService {
 
   private get stripe(): Stripe {
     if (!this._stripe) {
-      this._stripe = new Stripe(this.config.getOrThrow<string>('STRIPE_SECRET_KEY'));
+      this._stripe = new Stripe(
+        this.config.getOrThrow<string>('stripe.secretKey'),
+      );
     }
     return this._stripe;
   }
@@ -45,14 +50,18 @@ export class PaymentsService {
       where: eq(bookings.id, dto.bookingId),
     });
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.customerId !== customer.id) throw new ForbiddenException('Not your booking');
-    if (booking.paymentStatus === 'paid') throw new BadRequestException('Booking is already paid');
+    if (booking.customerId !== customer.id)
+      throw new ForbiddenException('Not your booking');
+    if (booking.paymentStatus === 'paid')
+      throw new BadRequestException('Booking is already paid');
 
     const existing = await this.db.query.payments.findFirst({
       where: eq(payments.bookingId, dto.bookingId),
     });
     if (existing && existing.status === 'pending') {
-      throw new BadRequestException('A payment is already pending for this booking');
+      throw new BadRequestException(
+        'A payment is already pending for this booking',
+      );
     }
 
     if (dto.provider === PaymentProvider.STRIPE) {
@@ -81,8 +90,8 @@ export class PaymentsService {
         },
       ],
       metadata: { bookingId },
-      success_url: `${this.config.getOrThrow('PAYMENT_SUCCESS_URL')}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: this.config.getOrThrow('PAYMENT_CANCEL_URL'),
+      success_url: `${this.config.getOrThrow('payment.successUrl')}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: this.config.getOrThrow('payment.cancelUrl'),
     });
 
     await this.db.insert(payments).values({
@@ -113,11 +122,11 @@ export class PaymentsService {
           currency: 'NGN',
           reference,
           metadata: { bookingId, customerName },
-          callback_url: this.config.getOrThrow('PAYMENT_SUCCESS_URL'),
+          callback_url: this.config.getOrThrow('payment.successUrl'),
         },
         {
           headers: {
-            Authorization: `Bearer ${this.config.getOrThrow('PAYSTACK_SECRET_KEY')}`,
+            Authorization: `Bearer ${this.config.getOrThrow('paystack.secretKey')}`,
           },
         },
       ),
@@ -136,22 +145,32 @@ export class PaymentsService {
   }
 
   async handleStripeWebhook(rawBody: Buffer, signature: string) {
-    const webhookSecret = this.config.getOrThrow<string>('STRIPE_WEBHOOK_SECRET');
+    const webhookSecret = this.config.getOrThrow<string>(
+      'stripe.webhookSecret',
+    );
 
     let event: Stripe.Event;
     try {
-      event = this.stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+      event = this.stripe.webhooks.constructEvent(
+        rawBody,
+        signature,
+        webhookSecret,
+      );
     } catch {
       throw new BadRequestException('Invalid Stripe webhook signature');
     }
 
     if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as Stripe.Checkout.Session;
-      await this.markPaymentSuccess(session.id, 'stripe', session.metadata?.bookingId);
+      const session = event.data.object;
+      await this.markPaymentSuccess(
+        session.id,
+        'stripe',
+        session.metadata?.bookingId,
+      );
     }
 
     if (event.type === 'checkout.session.expired') {
-      const session = event.data.object as Stripe.Checkout.Session;
+      const session = event.data.object;
       await this.markPaymentFailed(session.id);
     }
   }
@@ -161,11 +180,19 @@ export class PaymentsService {
       const data = payload['data'] as Record<string, unknown>;
       const reference = data['reference'] as string;
       const meta = data['metadata'] as Record<string, unknown>;
-      await this.markPaymentSuccess(reference, 'paystack', meta?.['bookingId'] as string);
+      await this.markPaymentSuccess(
+        reference,
+        'paystack',
+        meta?.['bookingId'] as string,
+      );
     }
   }
 
-  private async markPaymentSuccess(reference: string, provider: string, bookingId?: string) {
+  private async markPaymentSuccess(
+    reference: string,
+    provider: string,
+    bookingId?: string,
+  ) {
     await this.db
       .update(payments)
       .set({ status: 'success' })
@@ -174,7 +201,11 @@ export class PaymentsService {
     if (bookingId) {
       await this.db
         .update(bookings)
-        .set({ paymentStatus: 'paid', paymentProvider: provider as 'stripe' | 'paystack', paymentReference: reference })
+        .set({
+          paymentStatus: 'paid',
+          paymentProvider: provider as 'stripe' | 'paystack',
+          paymentReference: reference,
+        })
         .where(eq(bookings.id, bookingId));
     }
   }

@@ -22,7 +22,7 @@ async function bootstrap() {
 
   const config = app.get(ConfigService);
   const allowedOrigins = config
-    .getOrThrow<string>('ALLOWED_ORIGINS')
+    .getOrThrow<string>('allowedOrigins')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);

@@ -14,24 +14,30 @@ export class PaystackWebhookGuard implements CanActivate {
   private readonly secretKey: string;
 
   constructor(private config: ConfigService) {
-    this.secretKey = this.config.getOrThrow<string>('PAYSTACK_SECRET_KEY');
+    this.secretKey = this.config.getOrThrow<string>('paystack.secretKey');
   }
 
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<RawBodyRequest<Request>>();
     const signature = req.headers['x-paystack-signature'] as string | undefined;
 
-    if (!signature) throw new UnauthorizedException('Missing Paystack signature header');
+    if (!signature)
+      throw new UnauthorizedException('Missing Paystack signature header');
 
     const rawBody = req.rawBody;
     if (!rawBody) throw new UnauthorizedException('Missing request body');
 
-    const hash = crypto.createHmac('sha512', this.secretKey).update(rawBody).digest('hex');
+    const hash = crypto
+      .createHmac('sha512', this.secretKey)
+      .update(rawBody)
+      .digest('hex');
 
     const hashBuf = Buffer.from(hash, 'hex');
     const sigBuf = Buffer.from(signature, 'hex');
 
-    const valid = hashBuf.length === sigBuf.length && crypto.timingSafeEqual(hashBuf, sigBuf);
+    const valid =
+      hashBuf.length === sigBuf.length &&
+      crypto.timingSafeEqual(hashBuf, sigBuf);
     if (!valid) throw new UnauthorizedException('Invalid Paystack signature');
 
     return true;

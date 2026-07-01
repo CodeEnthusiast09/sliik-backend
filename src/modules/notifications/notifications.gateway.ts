@@ -44,7 +44,7 @@ export class NotificationsGateway implements OnGatewayConnection<AuthenticatedSo
     try {
       const token = this.extractToken(client);
       const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: this.configService.getOrThrow<string>('JWT_SECRET'),
+        secret: this.configService.getOrThrow<string>('jwt.secret'),
       });
       client.data.userId = payload.sub;
       await client.join(this.roomFor(payload.sub));
