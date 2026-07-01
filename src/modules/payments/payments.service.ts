@@ -156,18 +156,7 @@ export class PaymentsService {
     }
   }
 
-  async handlePaystackWebhook(rawBody: Buffer, signature: string) {
-    const crypto = await import('crypto');
-    const secret = this.config.getOrThrow<string>('PAYSTACK_SECRET_KEY');
-    const hash = crypto.createHmac('sha512', secret).update(rawBody).digest('hex');
-
-    const hashBuf = Buffer.from(hash, 'hex');
-    const sigBuf = Buffer.from(signature ?? '', 'hex');
-    const valid = hashBuf.length === sigBuf.length && crypto.timingSafeEqual(hashBuf, sigBuf);
-    if (!valid) throw new BadRequestException('Invalid Paystack webhook signature');
-
-    const payload = JSON.parse(rawBody.toString()) as Record<string, unknown>;
-
+  async handlePaystackWebhook(payload: Record<string, unknown>) {
     if (payload['event'] === 'charge.success') {
       const data = payload['data'] as Record<string, unknown>;
       const reference = data['reference'] as string;
