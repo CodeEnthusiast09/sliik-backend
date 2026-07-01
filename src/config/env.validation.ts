@@ -59,6 +59,23 @@ class EnvironmentVariables {
   @Min(0)
   @Max(100)
   PLATFORM_COMMISSION_PERCENT?: number;
+
+  @IsString()
+  @IsNotEmpty()
+  CLOUDINARY_CLOUD_NAME: string;
+
+  @IsString()
+  @IsNotEmpty()
+  CLOUDINARY_API_KEY: string;
+
+  @IsString()
+  @IsNotEmpty()
+  CLOUDINARY_API_SECRET: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  MAX_UPLOAD_SIZE_MB?: number;
 }
 
 export function validate(config: Record<string, unknown>) {

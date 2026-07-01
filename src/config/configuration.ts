@@ -42,4 +42,8 @@ export default () => ({
     apiKey: process.env.CLOUDINARY_API_KEY,
     apiSecret: process.env.CLOUDINARY_API_SECRET,
   },
+
+  uploads: {
+    maxSizeMb: parseInt(process.env.MAX_UPLOAD_SIZE_MB ?? '5', 10),
+  },
 });
