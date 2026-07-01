@@ -4,9 +4,27 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
+  BadRequestException,
+  NotFoundException,
+  UnauthorizedException,
+  ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { errorResponse } from '../utils/response.helper';
+
+function resolveErrorType(exception: HttpException): string {
+  if (exception instanceof BadRequestException) {
+    const res = exception.getResponse() as Record<string, unknown>;
+    if (Array.isArray(res['message'])) return 'ValidationError';
+    return 'BadRequest';
+  }
+  if (exception instanceof NotFoundException) return 'NotFound';
+  if (exception instanceof UnauthorizedException) return 'Unauthorized';
+  if (exception instanceof ForbiddenException) return 'Forbidden';
+  if (exception instanceof ConflictException) return 'Conflict';
+  return 'BadRequest';
+}
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -17,6 +35,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
+      const errorType = resolveErrorType(exception);
 
       let message: string | string[];
 
@@ -33,11 +52,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         message = String(exceptionResponse);
       }
 
-      return response.status(status).json(errorResponse(message));
+      return response.status(status).json(errorResponse(message, errorType));
     }
 
     return response
       .status(HttpStatus.INTERNAL_SERVER_ERROR)
-      .json(errorResponse('Something went wrong'));
+      .json(errorResponse('Something went wrong', 'ServerError'));
   }
 }

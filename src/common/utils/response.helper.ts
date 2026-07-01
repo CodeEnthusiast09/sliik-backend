@@ -6,9 +6,10 @@ export const successResponse = <T>(message: string, data?: T): ApiResponse<T> =>
   data,
 });
 
-export const errorResponse = (message: string | string[]): ApiResponse => ({
+export const errorResponse = (message: string | string[], error?: string): ApiResponse => ({
   success: false,
   message,
+  error,
 });
 
 export const paginatedResponse = <T>(
