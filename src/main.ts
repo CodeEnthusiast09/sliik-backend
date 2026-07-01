@@ -1,16 +1,14 @@
+import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { json } from 'express';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  // Raw body needed for Stripe webhook signature verification
+  // rawBody: true populates req.rawBody on every request (used by the Stripe
+  // webhook signature check) without disrupting normal JSON parsing elsewhere.
   const app = await NestFactory.create(AppModule, { rawBody: true });
-
-  // Parse JSON for all routes except webhook paths that need raw body
-  app.use('/api/payments/webhook/stripe', json({ type: 'application/json' }));
 
   app.setGlobalPrefix('api');
   app.useGlobalPipes(
