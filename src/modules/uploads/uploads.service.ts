@@ -12,8 +12,11 @@ export class UploadsService {
     });
   }
 
-  async uploadImage(file: Express.Multer.File): Promise<{ url: string }> {
-    const dataUri = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+  async uploadImage(
+    file: Express.Multer.File,
+    mimeType: string,
+  ): Promise<{ url: string }> {
+    const dataUri = `data:${mimeType};base64,${file.buffer.toString('base64')}`;
 
     const result = await cloudinary.uploader
       .upload(dataUri, { folder: 'sliik' })

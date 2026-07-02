@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE } from '../../db';
@@ -15,7 +17,10 @@ type Db = NodePgDatabase<typeof schema>;
 
 @Injectable()
 export class PortfolioService {
-  constructor(@Inject(DRIZZLE) private db: Db) {}
+  constructor(
+    @Inject(DRIZZLE) private db: Db,
+    private config: ConfigService,
+  ) {}
 
   private async getProviderProfile(userId: string) {
     const profile = await this.db.query.providerProfiles.findFirst({
@@ -25,8 +30,19 @@ export class PortfolioService {
     return profile;
   }
 
+  private assertCloudinaryUrl(imageUrl: string) {
+    const cloudName = this.config.getOrThrow<string>('cloudinary.cloudName');
+    const allowedPrefix = `https://res.cloudinary.com/${cloudName}/`;
+    if (!imageUrl.startsWith(allowedPrefix)) {
+      throw new BadRequestException(
+        'imageUrl must be a Cloudinary URL returned by the uploads endpoint',
+      );
+    }
+  }
+
   async addItem(userId: string, dto: CreatePortfolioItemDto) {
     const profile = await this.getProviderProfile(userId);
+    this.assertCloudinaryUrl(dto.imageUrl);
 
     const [item] = await this.db
       .insert(portfolio)
