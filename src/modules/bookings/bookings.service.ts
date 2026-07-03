@@ -17,15 +17,17 @@ import {
 } from '../../db/schema';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { PayoutsService } from '../payouts/payouts.service';
+import { ProvidersService } from '../providers/providers.service';
 
 type Db = NodePgDatabase<typeof schema>;
-type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'declined';
 
 @Injectable()
 export class BookingsService {
   constructor(
     @Inject(DRIZZLE) private db: Db,
     private payoutsService: PayoutsService,
+    private providersService: ProvidersService,
   ) {}
 
   private async getCustomerProfile(userId: string) {
@@ -87,6 +89,21 @@ export class BookingsService {
       throw new NotFoundException('Service not found or not available');
 
     await this.payoutsService.assertProviderPayable(provider.id);
+
+    // Re-check the exact requested slot is still free immediately before
+    // inserting - the client already fetched available slots to build its
+    // picker, but another customer could have booked the same time since.
+    // Reuses the same schedule/day-off/conflict logic as the slots endpoint
+    // so there's one source of truth for "is this time available".
+    const requestedTime = new Date(dto.scheduledAt).getTime();
+    const { slots } = await this.providersService.getAvailableSlots(dto.providerId, {
+      date: dto.scheduledAt.slice(0, 10),
+      serviceId: dto.serviceId,
+    });
+    const stillAvailable = slots.some((slot) => new Date(slot).getTime() === requestedTime);
+    if (!stillAvailable) {
+      throw new BadRequestException('This time slot is no longer available');
+    }
 
     const [booking] = await this.db
       .insert(bookings)
@@ -150,6 +167,23 @@ export class BookingsService {
     return updated;
   }
 
+  async declineBooking(userId: string, bookingId: string) {
+    const provider = await this.getProviderProfile(userId);
+    const booking = await this.getBookingOrThrow(bookingId);
+
+    if (booking.providerId !== provider.id)
+      throw new ForbiddenException('Not your booking');
+    this.assertStatus(booking, ['pending']);
+
+    const [updated] = await this.db
+      .update(bookings)
+      .set({ status: 'declined', updatedAt: new Date() })
+      .where(eq(bookings.id, bookingId))
+      .returning();
+
+    return updated;
+  }
+
   async cancelBooking(userId: string, role: string, bookingId: string) {
     const booking = await this.getBookingOrThrow(bookingId);
 
@@ -158,7 +192,13 @@ export class BookingsService {
       (role === 'provider' && booking.provider.userId === userId);
 
     if (!isOwner) throw new ForbiddenException('Access denied');
-    this.assertStatus(booking, ['pending', 'confirmed']);
+
+    // Providers decline a pending request instead of cancelling it (see
+    // declineBooking) - cancel is for backing out of an already-confirmed
+    // booking. Customers can still cancel a request at either stage.
+    const allowedStatuses: BookingStatus[] =
+      role === 'provider' ? ['confirmed'] : ['pending', 'confirmed'];
+    this.assertStatus(booking, allowedStatuses);
 
     const [updated] = await this.db
       .update(bookings)

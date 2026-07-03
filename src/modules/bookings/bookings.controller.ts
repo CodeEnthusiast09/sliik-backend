@@ -58,6 +58,16 @@ export class BookingsController {
     return successResponse('Booking confirmed', data);
   }
 
+  @Patch(':id/decline')
+  @Roles('provider')
+  async declineBooking(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+  ) {
+    const data = await this.bookingsService.declineBooking(user.id, id);
+    return successResponse('Booking declined', data);
+  }
+
   @Patch(':id/cancel')
   @Roles('customer', 'provider')
   async cancelBooking(

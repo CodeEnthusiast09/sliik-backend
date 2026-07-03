@@ -10,6 +10,7 @@ import {
 import { ProvidersService } from './providers.service';
 import { UpdateProviderProfileDto } from './dto/update-provider-profile.dto';
 import { FindProvidersQueryDto } from './dto/find-providers-query.dto';
+import { GetAvailableSlotsQueryDto } from './dto/get-available-slots-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -48,6 +49,16 @@ export class ProvidersController {
   ) {
     const data = await this.providersService.updateMyProfile(user.id, dto);
     return successResponse('Profile updated', data);
+  }
+
+  // /:id/slots must come before /:id to avoid being matched as an id
+  @Get(':id/slots')
+  async getAvailableSlots(
+    @Param('id') id: string,
+    @Query() query: GetAvailableSlotsQueryDto,
+  ) {
+    const data = await this.providersService.getAvailableSlots(id, query);
+    return successResponse('Available slots fetched', data);
   }
 
   @Get(':id')
