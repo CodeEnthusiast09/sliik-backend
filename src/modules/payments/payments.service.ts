@@ -48,11 +48,19 @@ export class PaymentsService {
 
     const existing = await this.db.query.payments.findFirst({
       where: eq(payments.bookingId, dto.bookingId),
+      orderBy: (p, { desc }) => [desc(p.createdAt)],
     });
     if (existing && existing.status === 'pending') {
-      throw new BadRequestException(
-        'A payment is already pending for this booking',
+      // Don't just trust our own stale 'pending' row - Paystack never tells us
+      // about an abandoned or failed checkout unless charge.failed happens to
+      // fire, so ask Paystack directly rather than blocking retries forever.
+      const isPaid = await this.verifyAndSyncPayment(
+        existing.reference,
+        dto.bookingId,
       );
+      if (isPaid) {
+        throw new BadRequestException('Booking is already paid');
+      }
     }
 
     return this.initiatePaystack(
@@ -114,6 +122,10 @@ export class PaymentsService {
       const reference = data['reference'] as string;
       const meta = data['metadata'] as Record<string, unknown>;
       await this.markPaymentSuccess(reference, meta?.['bookingId'] as string);
+    } else if (payload['event'] === 'charge.failed') {
+      const data = payload['data'] as Record<string, unknown>;
+      const reference = data['reference'] as string;
+      await this.markPaymentFailed(reference);
     }
   }
 
@@ -133,5 +145,37 @@ export class PaymentsService {
         })
         .where(eq(bookings.id, bookingId));
     }
+  }
+
+  private async markPaymentFailed(reference: string) {
+    await this.db
+      .update(payments)
+      .set({ status: 'failed' })
+      .where(eq(payments.reference, reference));
+  }
+
+  // Asks Paystack directly whether a 'pending' payment row actually went
+  // through - covers both a failed/abandoned checkout (no webhook ever
+  // fires for pure abandonment) and a lost/delayed webhook for a real
+  // success, rather than trusting our own possibly-stale row.
+  private async verifyAndSyncPayment(
+    reference: string,
+    bookingId: string,
+  ): Promise<boolean> {
+    const { data } = await firstValueFrom(
+      this.http.get(`https://api.paystack.co/transaction/verify/${reference}`, {
+        headers: {
+          Authorization: `Bearer ${this.config.getOrThrow('paystack.secretKey')}`,
+        },
+      }),
+    );
+
+    if (data.data.status === 'success') {
+      await this.markPaymentSuccess(reference, bookingId);
+      return true;
+    }
+
+    await this.markPaymentFailed(reference);
+    return false;
   }
 }
