@@ -48,6 +48,14 @@ export class OffersController {
     return successResponse('Open offers fetched', data);
   }
 
+  // /responses/mine must come before /:id to avoid being matched as an id
+  @Get('responses/mine')
+  @Roles('provider')
+  async getMyResponses(@CurrentUser() user: AuthUser) {
+    const data = await this.offersService.getMyResponses(user.id);
+    return successResponse('Responses fetched', data);
+  }
+
   @Get(':id')
   @Roles('customer', 'provider')
   async getOfferById(
@@ -66,7 +74,7 @@ export class OffersController {
     @Param('id') id: string,
   ) {
     const data = await this.offersService.cancelOffer(user.id, id);
-    return
+    return successResponse('Offer cancelled', data);
   }
 
   @Post(':id/respond')
