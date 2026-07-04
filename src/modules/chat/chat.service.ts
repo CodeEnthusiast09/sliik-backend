@@ -173,7 +173,10 @@ export class ChatService {
         },
         orderBy: (b, { desc }) => [desc(b.createdAt)],
       });
-      return rows.filter((b) => b.conversation !== null);
+      // Also excludes cancelled/declined bookings - otherwise a dead
+      // conversation would still show up in the list and 400 as soon as
+      // it's opened, since getMessages enforces the same status scoping.
+      return rows.filter((b) => b.conversation !== null && CHATTABLE_STATUSES.includes(b.status));
     }
 
     const provider = await this.getProviderProfile(userId);
@@ -194,6 +197,6 @@ export class ChatService {
       },
       orderBy: (b, { desc }) => [desc(b.createdAt)],
     });
-    return rows.filter((b) => b.conversation !== null);
+    return rows.filter((b) => b.conversation !== null && CHATTABLE_STATUSES.includes(b.status));
   }
 }
