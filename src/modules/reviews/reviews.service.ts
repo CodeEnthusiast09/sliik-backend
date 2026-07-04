@@ -9,14 +9,23 @@ import { and, avg, count, eq, inArray } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE } from '../../db';
 import * as schema from '../../db/schema';
-import { bookings, customerProfiles, providerProfiles, reviews } from '../../db/schema';
+import {
+  bookings,
+  customerProfiles,
+  providerProfiles,
+  reviews,
+} from '../../db/schema';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type Db = NodePgDatabase<typeof schema>;
 
 @Injectable()
 export class ReviewsService {
-  constructor(@Inject(DRIZZLE) private db: Db) {}
+  constructor(
+    @Inject(DRIZZLE) private db: Db,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async createReview(userId: string, dto: CreateReviewDto) {
     const booking = await this.db.query.bookings.findFirst({
@@ -29,20 +38,27 @@ export class ReviewsService {
     }
 
     let revieweeId: string;
+    let reviewerName: string;
     if (booking.customer.userId === userId) {
       revieweeId = booking.provider.userId;
+      reviewerName = booking.customer.fullName;
     } else if (booking.provider.userId === userId) {
       revieweeId = booking.customer.userId;
+      reviewerName = booking.provider.fullName;
     } else {
       throw new ForbiddenException('You are not a participant of this booking');
     }
 
     const existing = await this.db.query.reviews.findFirst({
-      where: and(eq(reviews.bookingId, dto.bookingId), eq(reviews.reviewerId, userId)),
+      where: and(
+        eq(reviews.bookingId, dto.bookingId),
+        eq(reviews.reviewerId, userId),
+      ),
     });
-    if (existing) throw new BadRequestException('You have already reviewed this booking');
+    if (existing)
+      throw new BadRequestException('You have already reviewed this booking');
 
-    return this.db.transaction(async (tx) => {
+    const review = await this.db.transaction(async (tx) => {
       const [review] = await tx
         .insert(reviews)
         .values({
@@ -79,6 +95,16 @@ export class ReviewsService {
 
       return review;
     });
+
+    await this.notificationsService.create(
+      revieweeId,
+      'review_received',
+      'New review received',
+      `${reviewerName} left you a ${dto.rating}-star review`,
+      { bookingId: dto.bookingId },
+    );
+
+    return review;
   }
 
   async getReviewsForBooking(userId: string, bookingId: string) {
@@ -87,7 +113,10 @@ export class ReviewsService {
       with: { customer: true, provider: true },
     });
     if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.customer.userId !== userId && booking.provider.userId !== userId) {
+    if (
+      booking.customer.userId !== userId &&
+      booking.provider.userId !== userId
+    ) {
       throw new ForbiddenException('You are not a participant of this booking');
     }
 
@@ -122,9 +151,15 @@ export class ReviewsService {
         ])
       : [[], []];
 
-    const reviewerById = new Map<string, { fullName: string; avatarUrl: string | null }>();
+    const reviewerById = new Map<
+      string,
+      { fullName: string; avatarUrl: string | null }
+    >();
     for (const profile of [...reviewerCustomers, ...reviewerProviders]) {
-      reviewerById.set(profile.userId, { fullName: profile.fullName, avatarUrl: profile.avatarUrl });
+      reviewerById.set(profile.userId, {
+        fullName: profile.fullName,
+        avatarUrl: profile.avatarUrl,
+      });
     }
 
     return {

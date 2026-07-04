@@ -8,7 +8,11 @@ import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE } from '../../db';
 import * as schema from '../../db/schema';
-import { providerProfiles, providerAvailability, providerDaysOff } from '../../db/schema';
+import {
+  providerProfiles,
+  providerAvailability,
+  providerDaysOff,
+} from '../../db/schema';
 import { SetScheduleDto } from './dto/set-schedule.dto';
 import { AddDayOffDto } from './dto/add-day-off.dto';
 
@@ -92,7 +96,8 @@ export class AvailabilityService {
       where: eq(providerDaysOff.id, dayOffId),
     });
     if (!existing) throw new NotFoundException('Day off not found');
-    if (existing.providerId !== profile.id) throw new ForbiddenException('Not your day off entry');
+    if (existing.providerId !== profile.id)
+      throw new ForbiddenException('Not your day off entry');
 
     await this.db
       .delete(providerDaysOff)

@@ -36,7 +36,12 @@ export class ProvidersService {
   async getMyProfile(userId: string) {
     const profile = await this.db.query.providerProfiles.findFirst({
       where: eq(providerProfiles.userId, userId),
-      with: { services: true, portfolio: true, availability: true, daysOff: true },
+      with: {
+        services: true,
+        portfolio: true,
+        availability: true,
+        daysOff: true,
+      },
     });
     if (!profile) throw new NotFoundException('Profile not found');
     return profile;
@@ -64,7 +69,10 @@ export class ProvidersService {
         services: { where: eq(services.isActive, true) },
         portfolio: true,
         deals: {
-          where: and(gt(sliikDeals.slotsRemaining, 0), gt(sliikDeals.expiresAt, new Date())),
+          where: and(
+            gt(sliikDeals.slotsRemaining, 0),
+            gt(sliikDeals.expiresAt, new Date()),
+          ),
         },
       },
     });
@@ -74,7 +82,10 @@ export class ProvidersService {
 
   // Nigeria-only, single-timezone app - dates/times are treated as plain
   // UTC-equivalent clock-face values throughout, no timezone conversion.
-  async getAvailableSlots(providerId: string, query: GetAvailableSlotsQueryDto) {
+  async getAvailableSlots(
+    providerId: string,
+    query: GetAvailableSlotsQueryDto,
+  ) {
     const provider = await this.db.query.providerProfiles.findFirst({
       where: eq(providerProfiles.id, providerId),
     });
@@ -87,7 +98,8 @@ export class ProvidersService {
         eq(services.isActive, true),
       ),
     });
-    if (!service) throw new NotFoundException('Service not found or not available');
+    if (!service)
+      throw new NotFoundException('Service not found or not available');
 
     const dayOfWeek = new Date(`${query.date}T00:00:00.000Z`).getUTCDay();
 
@@ -172,8 +184,7 @@ export class ProvidersService {
       );
     }
 
-    const hasLocation =
-      query.lat !== undefined && query.lng !== undefined;
+    const hasLocation = query.lat !== undefined && query.lng !== undefined;
     const radiusKm = query.radiusKm ?? 10;
 
     if (hasLocation) {

@@ -53,6 +53,10 @@ export const bookings = pgTable('bookings', {
     .default('unpaid'),
   paymentProvider: paymentProviderEnum('payment_provider'),
   paymentReference: text('payment_reference'),
+  // Set by the appointment-reminder cron once each reminder fires, so a
+  // booking never gets the same reminder twice across poll ticks.
+  remindedAt24h: timestamp('reminded_at_24h'),
+  remindedAt2h: timestamp('reminded_at_2h'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

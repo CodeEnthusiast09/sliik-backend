@@ -1,4 +1,12 @@
-import { pgTable, uuid, varchar, text, numeric, timestamp, pgEnum } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  numeric,
+  timestamp,
+  pgEnum,
+} from 'drizzle-orm/pg-core';
 import { customerProfiles } from './customer-profiles';
 import { providerProfiles } from './provider-profiles';
 
@@ -17,7 +25,9 @@ export const offerResponseStatusEnum = pgEnum('offer_response_status', [
 
 export const sliikOffers = pgTable('sliik_offers', {
   id: uuid('id').primaryKey().defaultRandom(),
-  customerId: uuid('customer_id').notNull().references(() => customerProfiles.id, { onDelete: 'cascade' }),
+  customerId: uuid('customer_id')
+    .notNull()
+    .references(() => customerProfiles.id, { onDelete: 'cascade' }),
   serviceType: varchar('service_type', { length: 100 }).notNull(),
   description: text('description').notNull(),
   budget: numeric('budget', { precision: 12, scale: 2 }),
@@ -31,8 +41,12 @@ export const sliikOffers = pgTable('sliik_offers', {
 
 export const sliikOfferResponses = pgTable('sliik_offer_responses', {
   id: uuid('id').primaryKey().defaultRandom(),
-  offerId: uuid('offer_id').notNull().references(() => sliikOffers.id, { onDelete: 'cascade' }),
-  providerId: uuid('provider_id').notNull().references(() => providerProfiles.id, { onDelete: 'cascade' }),
+  offerId: uuid('offer_id')
+    .notNull()
+    .references(() => sliikOffers.id, { onDelete: 'cascade' }),
+  providerId: uuid('provider_id')
+    .notNull()
+    .references(() => providerProfiles.id, { onDelete: 'cascade' }),
   offeredPrice: numeric('offered_price', { precision: 12, scale: 2 }).notNull(),
   message: text('message'),
   status: offerResponseStatusEnum('status').notNull().default('pending'),

@@ -40,41 +40,37 @@ export class BookingsController {
 
   @Get(':id')
   @Roles('customer', 'provider')
-  async getBookingById(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ) {
-    const data = await this.bookingsService.getBookingById(user.id, user.role, id);
+  async getBookingById(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.bookingsService.getBookingById(
+      user.id,
+      user.role,
+      id,
+    );
     return successResponse('Booking fetched', data);
   }
 
   @Patch(':id/confirm')
   @Roles('provider')
-  async confirmBooking(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ) {
+  async confirmBooking(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const data = await this.bookingsService.confirmBooking(user.id, id);
     return successResponse('Booking confirmed', data);
   }
 
   @Patch(':id/decline')
   @Roles('provider')
-  async declineBooking(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ) {
+  async declineBooking(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const data = await this.bookingsService.declineBooking(user.id, id);
     return successResponse('Booking declined', data);
   }
 
   @Patch(':id/cancel')
   @Roles('customer', 'provider')
-  async cancelBooking(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ) {
-    const data = await this.bookingsService.cancelBooking(user.id, user.role, id);
+  async cancelBooking(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.bookingsService.cancelBooking(
+      user.id,
+      user.role,
+      id,
+    );
     return successResponse('Booking cancelled', data);
   }
 

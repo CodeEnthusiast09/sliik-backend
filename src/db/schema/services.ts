@@ -1,9 +1,20 @@
-import { pgTable, uuid, varchar, text, integer, numeric, boolean, timestamp } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  integer,
+  numeric,
+  boolean,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 import { providerProfiles } from './provider-profiles';
 
 export const services = pgTable('services', {
   id: uuid('id').primaryKey().defaultRandom(),
-  providerId: uuid('provider_id').notNull().references(() => providerProfiles.id, { onDelete: 'cascade' }),
+  providerId: uuid('provider_id')
+    .notNull()
+    .references(() => providerProfiles.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   price: numeric('price', { precision: 12, scale: 2 }).notNull(),

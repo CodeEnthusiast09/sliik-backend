@@ -17,6 +17,7 @@ import {
   providerProfiles,
 } from '../../db/schema';
 import { SendMessageDto } from './dto/send-message.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type Db = NodePgDatabase<typeof schema>;
 type BookingWithParties = {
@@ -34,7 +35,10 @@ const CHATTABLE_STATUSES = ['confirmed', 'completed'];
 
 @Injectable()
 export class ChatService {
-  constructor(@Inject(DRIZZLE) private db: Db) {}
+  constructor(
+    @Inject(DRIZZLE) private db: Db,
+    private notificationsService: NotificationsService,
+  ) {}
 
   private async getCustomerProfile(userId: string) {
     const profile = await this.db.query.customerProfiles.findFirst({
@@ -114,6 +118,24 @@ export class ChatService {
       })
       .returning();
 
+    const isSenderCustomer = booking.customer.userId === userId;
+    const recipientUserId = isSenderCustomer
+      ? booking.provider.userId
+      : booking.customer.userId;
+    const senderName = isSenderCustomer
+      ? booking.customer.fullName
+      : booking.provider.fullName;
+    // In-app delivery while the recipient has the app open is already
+    // handled live by ChatGateway's own socket broadcast - this push is
+    // purely for reaching them once they've backgrounded the app.
+    await this.notificationsService.create(
+      recipientUserId,
+      'message_received',
+      senderName,
+      dto.content,
+      { bookingId: dto.bookingId },
+    );
+
     return message;
   }
 
@@ -176,7 +198,9 @@ export class ChatService {
       // Also excludes cancelled/declined bookings - otherwise a dead
       // conversation would still show up in the list and 400 as soon as
       // it's opened, since getMessages enforces the same status scoping.
-      return rows.filter((b) => b.conversation !== null && CHATTABLE_STATUSES.includes(b.status));
+      return rows.filter(
+        (b) => b.conversation !== null && CHATTABLE_STATUSES.includes(b.status),
+      );
     }
 
     const provider = await this.getProviderProfile(userId);
@@ -197,6 +221,8 @@ export class ChatService {
       },
       orderBy: (b, { desc }) => [desc(b.createdAt)],
     });
-    return rows.filter((b) => b.conversation !== null && CHATTABLE_STATUSES.includes(b.status));
+    return rows.filter(
+      (b) => b.conversation !== null && CHATTABLE_STATUSES.includes(b.status),
+    );
   }
 }

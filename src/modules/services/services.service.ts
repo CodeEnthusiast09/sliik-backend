@@ -52,20 +52,28 @@ export class ServicesService {
     });
   }
 
-  async updateService(userId: string, serviceId: string, dto: UpdateServiceDto) {
+  async updateService(
+    userId: string,
+    serviceId: string,
+    dto: UpdateServiceDto,
+  ) {
     const profile = await this.getProviderProfile(userId);
 
     const existing = await this.db.query.services.findFirst({
       where: eq(services.id, serviceId),
     });
     if (!existing) throw new NotFoundException('Service not found');
-    if (existing.providerId !== profile.id) throw new ForbiddenException('Not your service');
+    if (existing.providerId !== profile.id)
+      throw new ForbiddenException('Not your service');
 
-    const updates: Partial<typeof services.$inferInsert> = { updatedAt: new Date() };
+    const updates: Partial<typeof services.$inferInsert> = {
+      updatedAt: new Date(),
+    };
     if (dto.name !== undefined) updates.name = dto.name;
     if (dto.description !== undefined) updates.description = dto.description;
     if (dto.price !== undefined) updates.price = dto.price.toFixed(2);
-    if (dto.durationMinutes !== undefined) updates.durationMinutes = dto.durationMinutes;
+    if (dto.durationMinutes !== undefined)
+      updates.durationMinutes = dto.durationMinutes;
     if (dto.isActive !== undefined) updates.isActive = dto.isActive;
 
     const [updated] = await this.db
@@ -84,7 +92,8 @@ export class ServicesService {
       where: eq(services.id, serviceId),
     });
     if (!existing) throw new NotFoundException('Service not found');
-    if (existing.providerId !== profile.id) throw new ForbiddenException('Not your service');
+    if (existing.providerId !== profile.id)
+      throw new ForbiddenException('Not your service');
 
     await this.db
       .update(services)

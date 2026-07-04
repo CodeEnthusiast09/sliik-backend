@@ -53,10 +53,7 @@ export class ServicesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async deleteService(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ) {
+  async deleteService(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     await this.servicesService.deleteService(user.id, id);
     return successResponse('Service deactivated');
   }

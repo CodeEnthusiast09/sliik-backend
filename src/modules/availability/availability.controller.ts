@@ -42,10 +42,7 @@ export class AvailabilityController {
   }
 
   @Post('days-off')
-  async addDayOff(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: AddDayOffDto,
-  ) {
+  async addDayOff(@CurrentUser() user: AuthUser, @Body() dto: AddDayOffDto) {
     const data = await this.availabilityService.addDayOff(user.id, dto);
     return successResponse('Day off added', data);
   }
@@ -58,10 +55,7 @@ export class AvailabilityController {
 
   @Delete('days-off/:id')
   @HttpCode(HttpStatus.OK)
-  async removeDayOff(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ) {
+  async removeDayOff(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     await this.availabilityService.removeDayOff(user.id, id);
     return successResponse('Day off removed');
   }

@@ -33,4 +33,4 @@ export class CreateOfferDto {
   @IsNotEmpty()
   @MaxLength(100)
   city: string;
-} 
+}

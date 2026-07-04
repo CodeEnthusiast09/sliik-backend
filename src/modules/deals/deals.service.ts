@@ -21,6 +21,7 @@ import { UpdateDealDto } from './dto/update-deal.dto';
 import { ClaimDealDto } from './dto/claim-deal.dto';
 import { PayoutsService } from '../payouts/payouts.service';
 import { ProvidersService } from '../providers/providers.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -30,6 +31,7 @@ export class DealsService {
     @Inject(DRIZZLE) private db: Db,
     private payoutsService: PayoutsService,
     private providersService: ProvidersService,
+    private notificationsService: NotificationsService,
   ) {}
 
   private async getProviderProfile(userId: string) {
@@ -87,6 +89,23 @@ export class DealsService {
         expiresAt,
       })
       .returning();
+
+    if (provider.city) {
+      const nearbyCustomers = await this.db.query.customerProfiles.findMany({
+        where: eq(customerProfiles.city, provider.city),
+      });
+      await Promise.all(
+        nearbyCustomers.map((customer) =>
+          this.notificationsService.create(
+            customer.userId,
+            'deal_posted',
+            'New Sliik Deal nearby',
+            `${provider.fullName} posted a deal: ${dto.title}`,
+            { dealId: deal.id },
+          ),
+        ),
+      );
+    }
 
     return deal;
   }
@@ -198,6 +217,7 @@ export class DealsService {
 
     const deal = await this.db.query.sliikDeals.findFirst({
       where: eq(sliikDeals.id, dealId),
+      with: { provider: true },
     });
     if (!deal) throw new NotFoundException('Deal not found');
     if (deal.slotsRemaining <= 0)
@@ -209,7 +229,10 @@ export class DealsService {
     // customers, not hoarded by one - mirrors the one-response-per-provider
     // rule already enforced on Sliik Offers.
     const existingClaim = await this.db.query.bookings.findFirst({
-      where: and(eq(bookings.dealId, dealId), eq(bookings.customerId, customer.id)),
+      where: and(
+        eq(bookings.dealId, dealId),
+        eq(bookings.customerId, customer.id),
+      ),
     });
     if (existingClaim) {
       throw new BadRequestException('You have already claimed this deal');
@@ -221,14 +244,21 @@ export class DealsService {
     // exact same slot computation regular bookings validate against -
     // otherwise a claim could land in the past, on a day off, or on top of
     // an existing booking with no check at all.
-    const { slots } = await this.providersService.getAvailableSlots(deal.providerId, {
-      date: dto.scheduledAt.slice(0, 10),
-      serviceId: deal.serviceId,
-    });
+    const { slots } = await this.providersService.getAvailableSlots(
+      deal.providerId,
+      {
+        date: dto.scheduledAt.slice(0, 10),
+        serviceId: deal.serviceId,
+      },
+    );
     const requestedTime = new Date(dto.scheduledAt).getTime();
-    const isAvailable = slots.some((slot) => new Date(slot).getTime() === requestedTime);
+    const isAvailable = slots.some(
+      (slot) => new Date(slot).getTime() === requestedTime,
+    );
     if (!isAvailable) {
-      throw new BadRequestException('This time is not available for the provider');
+      throw new BadRequestException(
+        'This time is not available for the provider',
+      );
     }
 
     let createdBooking: typeof bookings.$inferSelect;
@@ -267,6 +297,14 @@ export class DealsService {
 
       createdBooking = booking;
     });
+
+    await this.notificationsService.create(
+      deal.provider.userId,
+      'deal_claimed',
+      'Deal claimed',
+      `${customer.fullName} claimed your deal: ${deal.title}`,
+      { dealId, bookingId: createdBooking!.id },
+    );
 
     return createdBooking!;
   }

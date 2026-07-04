@@ -22,7 +22,7 @@ import { successResponse } from '../../common/utils/response.helper';
 @Controller('offers')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class OffersController {
-  constructor(private offersService: OffersService) { }
+  constructor(private offersService: OffersService) {}
 
   @Post()
   @Roles('customer')
@@ -58,10 +58,7 @@ export class OffersController {
 
   @Get(':id')
   @Roles('customer', 'provider')
-  async getOfferById(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ) {
+  async getOfferById(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const data = await this.offersService.getOfferById(user.id, user.role, id);
     return successResponse('Offer fetched', data);
   }
@@ -69,10 +66,7 @@ export class OffersController {
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @Roles('customer')
-  async cancelOffer(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ) {
+  async cancelOffer(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const data = await this.offersService.cancelOffer(user.id, id);
     return successResponse('Offer cancelled', data);
   }
@@ -95,7 +89,11 @@ export class OffersController {
     @Param('id') id: string,
     @Param('responseId') responseId: string,
   ) {
-    const data = await this.offersService.acceptResponse(user.id, id, responseId);
+    const data = await this.offersService.acceptResponse(
+      user.id,
+      id,
+      responseId,
+    );
     return successResponse('Response accepted, booking created', data);
   }
 }

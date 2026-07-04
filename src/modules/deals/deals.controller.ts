@@ -28,10 +28,7 @@ export class DealsController {
 
   @Post()
   @Roles('provider')
-  async createDeal(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: CreateDealDto,
-  ) {
+  async createDeal(@CurrentUser() user: AuthUser, @Body() dto: CreateDealDto) {
     const data = await this.dealsService.createDeal(user.id, dto);
     return successResponse('Deal created', data);
   }
@@ -71,10 +68,7 @@ export class DealsController {
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @Roles('provider')
-  async deleteDeal(
-    @CurrentUser() user: AuthUser,
-    @Param('id') id: string,
-  ) {
+  async deleteDeal(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     await this.dealsService.deleteDeal(user.id, id);
     return successResponse('Deal deleted');
   }

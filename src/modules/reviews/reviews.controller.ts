@@ -36,7 +36,10 @@ export class ReviewsController {
     @CurrentUser() user: AuthUser,
     @Param('bookingId') bookingId: string,
   ) {
-    const data = await this.reviewsService.getReviewsForBooking(user.id, bookingId);
+    const data = await this.reviewsService.getReviewsForBooking(
+      user.id,
+      bookingId,
+    );
     return successResponse('Reviews fetched', data);
   }
 

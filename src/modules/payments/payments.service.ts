@@ -15,6 +15,7 @@ import * as schema from '../../db/schema';
 import { bookings, customerProfiles, payments } from '../../db/schema';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PayoutsService } from '../payouts/payouts.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -25,6 +26,7 @@ export class PaymentsService {
     private config: ConfigService,
     private http: HttpService,
     private payoutsService: PayoutsService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async initiatePayment(
@@ -144,6 +146,27 @@ export class PaymentsService {
           paymentReference: reference,
         })
         .where(eq(bookings.id, bookingId));
+
+      const booking = await this.db.query.bookings.findFirst({
+        where: eq(bookings.id, bookingId),
+        with: { customer: true, provider: true },
+      });
+      if (booking) {
+        await this.notificationsService.create(
+          booking.provider.userId,
+          'payment_received',
+          'Payment received',
+          `${booking.customer.fullName} paid ₦${booking.totalAmount} for their booking`,
+          { bookingId },
+        );
+        await this.notificationsService.create(
+          booking.customer.userId,
+          'payment_sent',
+          'Payment successful',
+          `Your payment of ₦${booking.totalAmount} was successful`,
+          { bookingId },
+        );
+      }
     }
   }
 

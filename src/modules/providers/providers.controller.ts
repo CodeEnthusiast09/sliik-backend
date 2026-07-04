@@ -27,7 +27,8 @@ export class ProvidersController {
 
   @Get()
   async findProviders(@Query() query: FindProvidersQueryDto) {
-    const { providers, meta } = await this.providersService.findProviders(query);
+    const { providers, meta } =
+      await this.providersService.findProviders(query);
     return paginatedResponse('Providers fetched', providers, meta);
   }
 

@@ -20,6 +20,7 @@ import {
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { RespondToOfferDto } from './dto/respond-to-offer.dto';
 import { PayoutsService } from '../payouts/payouts.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -34,7 +35,8 @@ export class OffersService {
   constructor(
     @Inject(DRIZZLE) private db: Db,
     private payoutsService: PayoutsService,
-  ) { }
+    private notificationsService: NotificationsService,
+  ) {}
 
   private async getCustomerProfile(userId: string) {
     const profile = await this.db.query.customerProfiles.findFirst({
@@ -76,6 +78,23 @@ export class OffersService {
         city: dto.city,
       })
       .returning();
+
+    // Fan-out: every provider in the same city is a candidate bidder,
+    // mirroring getOpenOffers' own eligibility filter (city match only).
+    const nearbyProviders = await this.db.query.providerProfiles.findMany({
+      where: eq(providerProfiles.city, dto.city),
+    });
+    await Promise.all(
+      nearbyProviders.map((provider) =>
+        this.notificationsService.create(
+          provider.userId,
+          'offer_posted',
+          'New Sliik Offer nearby',
+          `${customer.fullName} is looking for ${dto.serviceType} in ${dto.city}`,
+          { offerId: offer.id },
+        ),
+      ),
+    );
 
     return offer;
   }
@@ -178,6 +197,7 @@ export class OffersService {
 
     const offer = await this.db.query.sliikOffers.findFirst({
       where: eq(sliikOffers.id, offerId),
+      with: { customer: true },
     });
     if (!offer) throw new NotFoundException('Offer not found');
     if (offer.status !== 'open') {
@@ -203,6 +223,14 @@ export class OffersService {
       })
       .returning();
 
+    await this.notificationsService.create(
+      offer.customer.userId,
+      'offer_response_received',
+      'New offer response',
+      `${provider.fullName} responded to your Sliik Offer`,
+      { offerId, responseId: response.id },
+    );
+
     return response;
   }
 
@@ -226,6 +254,7 @@ export class OffersService {
         eq(sliikOfferResponses.id, responseId),
         eq(sliikOfferResponses.offerId, offerId),
       ),
+      with: { provider: true },
     });
     if (!response) throw new NotFoundException('Response not found');
     if (response.status !== 'pending') {
@@ -239,8 +268,14 @@ export class OffersService {
       where: and(
         eq(bookings.providerId, response.providerId),
         inArray(bookings.status, ['pending', 'confirmed']),
-        gte(bookings.scheduledAt, new Date(offer.preferredFrom.getTime() - windowMs)),
-        lt(bookings.scheduledAt, new Date(offer.preferredFrom.getTime() + windowMs)),
+        gte(
+          bookings.scheduledAt,
+          new Date(offer.preferredFrom.getTime() - windowMs),
+        ),
+        lt(
+          bookings.scheduledAt,
+          new Date(offer.preferredFrom.getTime() + windowMs),
+        ),
       ),
     });
     if (conflictingBooking) {
@@ -285,6 +320,14 @@ export class OffersService {
 
       createdBooking = booking;
     });
+
+    await this.notificationsService.create(
+      response.provider.userId,
+      'offer_accepted',
+      'Offer accepted',
+      `${customer.fullName} accepted your offer`,
+      { offerId, bookingId: createdBooking!.id },
+    );
 
     return createdBooking!;
   }

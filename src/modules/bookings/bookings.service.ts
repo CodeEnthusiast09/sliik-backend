@@ -18,9 +18,11 @@ import {
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { PayoutsService } from '../payouts/payouts.service';
 import { ProvidersService } from '../providers/providers.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 type Db = NodePgDatabase<typeof schema>;
-type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'declined';
+type BookingStatus =
+  'pending' | 'confirmed' | 'completed' | 'cancelled' | 'declined';
 
 @Injectable()
 export class BookingsService {
@@ -28,6 +30,7 @@ export class BookingsService {
     @Inject(DRIZZLE) private db: Db,
     private payoutsService: PayoutsService,
     private providersService: ProvidersService,
+    private notificationsService: NotificationsService,
   ) {}
 
   private async getCustomerProfile(userId: string) {
@@ -96,11 +99,16 @@ export class BookingsService {
     // Reuses the same schedule/day-off/conflict logic as the slots endpoint
     // so there's one source of truth for "is this time available".
     const requestedTime = new Date(dto.scheduledAt).getTime();
-    const { slots } = await this.providersService.getAvailableSlots(dto.providerId, {
-      date: dto.scheduledAt.slice(0, 10),
-      serviceId: dto.serviceId,
-    });
-    const stillAvailable = slots.some((slot) => new Date(slot).getTime() === requestedTime);
+    const { slots } = await this.providersService.getAvailableSlots(
+      dto.providerId,
+      {
+        date: dto.scheduledAt.slice(0, 10),
+        serviceId: dto.serviceId,
+      },
+    );
+    const stillAvailable = slots.some(
+      (slot) => new Date(slot).getTime() === requestedTime,
+    );
     if (!stillAvailable) {
       throw new BadRequestException('This time slot is no longer available');
     }
@@ -116,6 +124,14 @@ export class BookingsService {
         totalAmount: service.price,
       })
       .returning();
+
+    await this.notificationsService.create(
+      provider.userId,
+      'booking_created',
+      'New booking request',
+      `${customer.fullName} requested ${service.name}`,
+      { bookingId: booking.id },
+    );
 
     return booking;
   }
@@ -164,6 +180,14 @@ export class BookingsService {
       .where(eq(bookings.id, bookingId))
       .returning();
 
+    await this.notificationsService.create(
+      booking.customer.userId,
+      'booking_confirmed',
+      'Booking confirmed',
+      `${booking.provider.fullName} confirmed your booking`,
+      { bookingId },
+    );
+
     return updated;
   }
 
@@ -180,6 +204,14 @@ export class BookingsService {
       .set({ status: 'declined', updatedAt: new Date() })
       .where(eq(bookings.id, bookingId))
       .returning();
+
+    await this.notificationsService.create(
+      booking.customer.userId,
+      'booking_declined',
+      'Booking declined',
+      `${booking.provider.fullName} declined your booking request`,
+      { bookingId },
+    );
 
     return updated;
   }
@@ -206,6 +238,21 @@ export class BookingsService {
       .where(eq(bookings.id, bookingId))
       .returning();
 
+    const cancelledByProvider = role === 'provider';
+    const recipientUserId = cancelledByProvider
+      ? booking.customer.userId
+      : booking.provider.userId;
+    const cancellerName = cancelledByProvider
+      ? booking.provider.fullName
+      : booking.customer.fullName;
+    await this.notificationsService.create(
+      recipientUserId,
+      'booking_cancelled',
+      'Booking cancelled',
+      `${cancellerName} cancelled the booking`,
+      { bookingId },
+    );
+
     return updated;
   }
 
@@ -222,6 +269,14 @@ export class BookingsService {
       .set({ status: 'completed', updatedAt: new Date() })
       .where(eq(bookings.id, bookingId))
       .returning();
+
+    await this.notificationsService.create(
+      booking.customer.userId,
+      'booking_completed',
+      'Booking completed',
+      `Your appointment with ${booking.provider.fullName} is complete - leave a review!`,
+      { bookingId },
+    );
 
     return updated;
   }

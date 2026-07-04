@@ -12,6 +12,7 @@ import { sliikDeals } from './deals';
 import { conversations, messages } from './chat';
 import { payments } from './payments';
 import { notifications } from './notifications';
+import { devicePushTokens } from './device-push-tokens';
 import { providerPayoutAccounts } from './payouts';
 
 export const usersRelations = relations(users, ({ one }) => ({
@@ -199,6 +200,16 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, { fields: [notifications.userId], references: [users.id] }),
 }));
+
+export const devicePushTokensRelations = relations(
+  devicePushTokens,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [devicePushTokens.userId],
+      references: [users.id],
+    }),
+  }),
+);
 
 export const providerPayoutAccountsRelations = relations(
   providerPayoutAccounts,
