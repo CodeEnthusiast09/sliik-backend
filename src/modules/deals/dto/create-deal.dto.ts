@@ -6,6 +6,7 @@ import {
   IsPositive,
   IsString,
   IsUUID,
+  MaxLength,
   Min,
 } from 'class-validator';
 
@@ -15,6 +16,7 @@ export class CreateDealDto {
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(255)
   title: string;
 
   @IsString()

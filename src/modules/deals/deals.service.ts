@@ -20,6 +20,7 @@ import { CreateDealDto } from './dto/create-deal.dto';
 import { UpdateDealDto } from './dto/update-deal.dto';
 import { ClaimDealDto } from './dto/claim-deal.dto';
 import { PayoutsService } from '../payouts/payouts.service';
+import { ProvidersService } from '../providers/providers.service';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -28,6 +29,7 @@ export class DealsService {
   constructor(
     @Inject(DRIZZLE) private db: Db,
     private payoutsService: PayoutsService,
+    private providersService: ProvidersService,
   ) {}
 
   private async getProviderProfile(userId: string) {
@@ -203,7 +205,31 @@ export class DealsService {
     if (deal.expiresAt <= new Date())
       throw new BadRequestException('This deal has expired');
 
+    // A flash deal's limited slots are meant to be spread across multiple
+    // customers, not hoarded by one - mirrors the one-response-per-provider
+    // rule already enforced on Sliik Offers.
+    const existingClaim = await this.db.query.bookings.findFirst({
+      where: and(eq(bookings.dealId, dealId), eq(bookings.customerId, customer.id)),
+    });
+    if (existingClaim) {
+      throw new BadRequestException('You have already claimed this deal');
+    }
+
     await this.payoutsService.assertProviderPayable(deal.providerId);
+
+    // Deals have a real serviceId/duration (unlike offers), so reuse the
+    // exact same slot computation regular bookings validate against -
+    // otherwise a claim could land in the past, on a day off, or on top of
+    // an existing booking with no check at all.
+    const { slots } = await this.providersService.getAvailableSlots(deal.providerId, {
+      date: dto.scheduledAt.slice(0, 10),
+      serviceId: deal.serviceId,
+    });
+    const requestedTime = new Date(dto.scheduledAt).getTime();
+    const isAvailable = slots.some((slot) => new Date(slot).getTime() === requestedTime);
+    if (!isAvailable) {
+      throw new BadRequestException('This time is not available for the provider');
+    }
 
     let createdBooking: typeof bookings.$inferSelect;
 
@@ -233,6 +259,7 @@ export class DealsService {
           customerId: customer.id,
           providerId: deal.providerId,
           serviceId: deal.serviceId,
+          dealId: deal.id,
           scheduledAt: new Date(dto.scheduledAt),
           totalAmount: deal.dealPrice,
         })

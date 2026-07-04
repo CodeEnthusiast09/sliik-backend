@@ -9,6 +9,7 @@ import {
 import { customerProfiles } from './customer-profiles';
 import { providerProfiles } from './provider-profiles';
 import { services } from './services';
+import { sliikDeals } from './deals';
 
 export const bookingStatusEnum = pgEnum('booking_status', [
   'pending',
@@ -36,6 +37,12 @@ export const bookings = pgTable('bookings', {
     .references(() => providerProfiles.id, { onDelete: 'restrict' }),
   serviceId: uuid('service_id').references(() => services.id, {
     onDelete: 'restrict',
+  }),
+  // Nullable - only set when this booking came from claiming a Sliik Deal.
+  // 'set null' (not 'restrict') so a provider can still delete a deal that
+  // already has claims without being blocked by its resulting bookings.
+  dealId: uuid('deal_id').references(() => sliikDeals.id, {
+    onDelete: 'set null',
   }),
   status: bookingStatusEnum('status').notNull().default('pending'),
   scheduledAt: timestamp('scheduled_at').notNull(),

@@ -105,6 +105,10 @@ export const bookingsRelations = relations(bookings, ({ one, many }) => ({
     fields: [bookings.serviceId],
     references: [services.id],
   }),
+  deal: one(sliikDeals, {
+    fields: [bookings.dealId],
+    references: [sliikDeals.id],
+  }),
   reviews: many(reviews),
   conversation: one(conversations, {
     fields: [bookings.id],

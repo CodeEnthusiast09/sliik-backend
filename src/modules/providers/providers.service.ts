@@ -1,5 +1,5 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { SQL, and, eq, gte, inArray, lt, sql } from 'drizzle-orm';
+import { SQL, and, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE } from '../../db';
 import * as schema from '../../db/schema';
@@ -10,6 +10,7 @@ import {
   providerAvailability,
   providerDaysOff,
   bookings,
+  sliikDeals,
 } from '../../db/schema';
 import { UpdateProviderProfileDto } from './dto/update-provider-profile.dto';
 import { FindProvidersQueryDto } from './dto/find-providers-query.dto';
@@ -62,6 +63,9 @@ export class ProvidersService {
       with: {
         services: { where: eq(services.isActive, true) },
         portfolio: true,
+        deals: {
+          where: and(gt(sliikDeals.slotsRemaining, 0), gt(sliikDeals.expiresAt, new Date())),
+        },
       },
     });
     if (!profile) throw new NotFoundException('Provider not found');
