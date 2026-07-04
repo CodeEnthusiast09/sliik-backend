@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -19,9 +20,17 @@ import { SendMessageDto } from './dto/send-message.dto';
 
 type Db = NodePgDatabase<typeof schema>;
 type BookingWithParties = {
+  status: string;
   customer: { userId: string };
   provider: { userId: string };
 };
+
+// Chat is scoped to the booking context, not open DMs - only usable once
+// the provider has confirmed, and stays open (read + write) after
+// completion for follow-ups/rebooking. Blocked while still pending
+// (nothing to discuss yet) and once cancelled/declined (no ongoing
+// relationship left to message about).
+const CHATTABLE_STATUSES = ['confirmed', 'completed'];
 
 @Injectable()
 export class ChatService {
@@ -58,6 +67,11 @@ export class ChatService {
       booking.provider.userId !== userId
     ) {
       throw new ForbiddenException('You are not a participant of this booking');
+    }
+    if (!CHATTABLE_STATUSES.includes(booking.status)) {
+      throw new BadRequestException(
+        `Chat is not available on a booking with status "${booking.status}"`,
+      );
     }
   }
 
