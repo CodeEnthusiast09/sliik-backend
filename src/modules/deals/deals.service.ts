@@ -116,7 +116,7 @@ export class DealsService {
         gt(sliikDeals.slotsRemaining, 0),
         gt(sliikDeals.expiresAt, new Date()),
       ),
-      with: { provider: true, service: true },
+      with: { provider: { with: { portfolio: true } }, service: true },
       orderBy: (d, { asc }) => [asc(d.expiresAt)],
     });
   }
@@ -126,7 +126,7 @@ export class DealsService {
 
     return this.db.query.sliikDeals.findMany({
       where: eq(sliikDeals.providerId, provider.id),
-      with: { service: true },
+      with: { service: true, provider: { with: { portfolio: true } } },
       orderBy: (d, { desc }) => [desc(d.createdAt)],
     });
   }
@@ -134,7 +134,7 @@ export class DealsService {
   async getDealById(id: string) {
     const deal = await this.db.query.sliikDeals.findFirst({
       where: eq(sliikDeals.id, id),
-      with: { provider: true, service: true },
+      with: { provider: { with: { portfolio: true } }, service: true },
     });
     if (!deal) throw new NotFoundException('Deal not found');
     return deal;
