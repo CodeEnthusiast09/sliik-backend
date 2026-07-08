@@ -33,6 +33,13 @@ interface PaystackSubaccountResponse {
   };
 }
 
+interface PaystackResolveAccountResponse {
+  data: {
+    account_number: string;
+    account_name: string;
+  };
+}
+
 @Injectable()
 export class PayoutsService {
   constructor(
@@ -68,6 +75,29 @@ export class PayoutsService {
       ),
     );
     return data.data;
+  }
+
+  // Live account-name lookup for the mobile payout-setup form, so a provider sees
+  // whose account they're about to save BEFORE creating the subaccount - purely a
+  // read against Paystack, nothing persisted here (persisting/verifying happens in
+  // createPayoutAccount below, same as before this method existed).
+  async resolveAccountName(bankCode: string, accountNumber: string) {
+    const { data } = await firstValueFrom(
+      this.http.get<PaystackResolveAccountResponse>(
+        `https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.config.getOrThrow('paystack.secretKey')}`,
+          },
+        },
+      ),
+    ).catch(() => {
+      throw new BadRequestException(
+        'Could not resolve this account - check the account number and bank',
+      );
+    });
+
+    return { accountName: data.data.account_name };
   }
 
   async createPayoutAccount(userId: string, dto: CreatePayoutAccountDto) {

@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { PayoutsService } from './payouts.service';
 import { CreatePayoutAccountDto } from './dto/create-payout-account.dto';
+import { ResolveAccountQueryDto } from './dto/resolve-account-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -18,6 +19,16 @@ export class PayoutsController {
   async getBankList() {
     const data = await this.payoutsService.getBankList();
     return successResponse('Banks fetched', data);
+  }
+
+  @Get('resolve-account')
+  @Roles('provider')
+  async resolveAccountName(@Query() query: ResolveAccountQueryDto) {
+    const data = await this.payoutsService.resolveAccountName(
+      query.bankCode,
+      query.accountNumber,
+    );
+    return successResponse('Account resolved', data);
   }
 
   @Get('me')
