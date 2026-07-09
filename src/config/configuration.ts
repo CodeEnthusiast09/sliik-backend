@@ -46,4 +46,31 @@ export default () => ({
   uploads: {
     maxSizeMb: parseInt(process.env.MAX_UPLOAD_SIZE_MB ?? '5', 10),
   },
+
+  mail: {
+    host: process.env.MAIL_HOST,
+    port: parseInt(process.env.MAIL_PORT ?? '465', 10),
+    secure: process.env.MAIL_SECURE !== 'false',
+    user: process.env.MAIL_USER,
+    password: process.env.MAIL_PASSWORD,
+    fromName: process.env.MAIL_FROM_NAME ?? 'Sliik',
+    fromAddress: process.env.MAIL_FROM_ADDRESS,
+  },
+
+  passwordReset: {
+    codeExpiryMinutes: parseInt(
+      process.env.PASSWORD_RESET_CODE_EXPIRY_MINUTES ?? '10',
+      10,
+    ),
+    maxAttempts: parseInt(process.env.PASSWORD_RESET_MAX_ATTEMPTS ?? '5', 10),
+    resendCooldownSeconds: parseInt(
+      process.env.PASSWORD_RESET_RESEND_COOLDOWN_SECONDS ?? '60',
+      10,
+    ),
+  },
+
+  throttle: {
+    ttlSeconds: parseInt(process.env.THROTTLE_TTL_SECONDS ?? '900', 10),
+    limit: parseInt(process.env.THROTTLE_LIMIT ?? '3', 10),
+  },
 });

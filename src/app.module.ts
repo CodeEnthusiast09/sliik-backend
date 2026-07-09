@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
 import configuration from './config/configuration';
 import { validate } from './config/env.validation';
 import { DbModule } from './db';
 import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { ProvidersModule } from './modules/providers/providers.module';
 import { ServicesModule } from './modules/services/services.module';
@@ -24,8 +26,20 @@ import { PortfolioModule } from './modules/portfolio/portfolio.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [configuration], validate }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            ttl: config.getOrThrow<number>('throttle.ttlSeconds') * 1000,
+            limit: config.getOrThrow<number>('throttle.limit'),
+          },
+        ],
+      }),
+    }),
     DbModule,
     AuthModule,
+    UsersModule,
     CustomersModule,
     ProvidersModule,
     ServicesModule,

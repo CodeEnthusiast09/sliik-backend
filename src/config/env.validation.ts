@@ -76,6 +76,61 @@ class EnvironmentVariables {
   @IsNumber()
   @Min(1)
   MAX_UPLOAD_SIZE_MB?: number;
+
+  @IsString()
+  @IsNotEmpty()
+  MAIL_HOST: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(65535)
+  MAIL_PORT?: number;
+
+  @IsOptional()
+  @IsString()
+  MAIL_SECURE?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  MAIL_USER: string;
+
+  @IsString()
+  @IsNotEmpty()
+  MAIL_PASSWORD: string;
+
+  @IsOptional()
+  @IsString()
+  MAIL_FROM_NAME?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  MAIL_FROM_ADDRESS: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  PASSWORD_RESET_CODE_EXPIRY_MINUTES?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  PASSWORD_RESET_MAX_ATTEMPTS?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  PASSWORD_RESET_RESEND_COOLDOWN_SECONDS?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  THROTTLE_TTL_SECONDS?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  THROTTLE_LIMIT?: number;
 }
 
 export function validate(config: Record<string, unknown>) {

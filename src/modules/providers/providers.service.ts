@@ -4,6 +4,7 @@ import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE } from '../../db';
 import * as schema from '../../db/schema';
 import {
+  users,
   providerProfiles,
   services,
   portfolio,
@@ -77,6 +78,17 @@ export class ProvidersService {
       },
     });
     if (!profile) throw new NotFoundException('Provider not found');
+
+    // Hide soft-deleted (anonymized) providers from public view. Done as a
+    // separate read rather than a joined filter because the relational query
+    // API above aliases the table internally, so a raw correlated subquery in
+    // its `where` would reference an out-of-scope alias.
+    const owner = await this.db.query.users.findFirst({
+      where: eq(users.id, profile.userId),
+      columns: { isActive: true },
+    });
+    if (!owner?.isActive) throw new NotFoundException('Provider not found');
+
     return profile;
   }
 
@@ -171,6 +183,11 @@ export class ProvidersService {
     const offset = (page - 1) * limit;
 
     const conditions: SQL[] = [];
+
+    // Exclude soft-deleted (anonymized) providers from discovery.
+    conditions.push(
+      sql`exists (select 1 from ${users} where ${users.id} = ${providerProfiles.userId} and ${users.isActive} = true)`,
+    );
 
     if (query.city) {
       conditions.push(eq(providerProfiles.city, query.city));

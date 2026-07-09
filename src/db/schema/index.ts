@@ -13,4 +13,5 @@ export * from './payments';
 export * from './notifications';
 export * from './device-push-tokens';
 export * from './payouts';
+export * from './password-reset-codes';
 export * from './relations';
