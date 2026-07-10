@@ -11,9 +11,11 @@ import { DRIZZLE } from '../../db';
 import * as schema from '../../db/schema';
 import { users } from '../../db/schema';
 import { BookingCancelledEmail } from './emails/booking-cancelled';
+import { BookingCompletedEmail } from './emails/booking-completed';
 import { BookingConfirmedEmail } from './emails/booking-confirmed';
 import { BookingDeclinedEmail } from './emails/booking-declined';
 import { BookingRequestEmail } from './emails/booking-request';
+import { EmailVerificationEmail } from './emails/email-verification';
 import { PasswordResetEmail } from './emails/password-reset';
 import { PaymentReceiptEmail } from './emails/payment-receipt';
 import { WelcomeEmail } from './emails/welcome';
@@ -43,6 +45,11 @@ interface BookingCancelledData {
   cancellerName: string;
   serviceName: string;
   scheduledAt: Date;
+}
+
+interface BookingCompletedData {
+  providerName: string;
+  serviceName: string;
 }
 
 interface PaymentReceiptData {
@@ -92,6 +99,24 @@ export class MailService {
     await this.send({
       to,
       subject: 'Your Sliik password reset code',
+      html,
+      text,
+    });
+  }
+
+  async sendEmailVerificationCode(
+    to: string,
+    code: string,
+    expiryMinutes: number,
+  ) {
+    const html = await render(
+      createElement(EmailVerificationEmail, { code, expiryMinutes }),
+    );
+    const text = `Your Sliik email verification code is ${code}. It expires in ${expiryMinutes} minutes.`;
+
+    await this.send({
+      to,
+      subject: 'Verify your Sliik email',
       html,
       text,
     });
@@ -216,6 +241,34 @@ export class MailService {
     } catch (error) {
       this.logger.error(
         'Failed to send booking-cancelled email',
+        error as Error,
+      );
+    }
+  }
+
+  async sendBookingCompleted(
+    customerUserId: string,
+    data: BookingCompletedData,
+  ): Promise<void> {
+    try {
+      const to = await this.resolveEmail(customerUserId);
+      if (!to) return;
+      const html = await render(
+        createElement(BookingCompletedEmail, {
+          providerName: data.providerName,
+          serviceName: data.serviceName,
+        }),
+      );
+      const text = `Your appointment for ${data.serviceName} with ${data.providerName} is complete. Leave a review in the app.`;
+      await this.send({
+        to,
+        subject: 'Your appointment is complete',
+        html,
+        text,
+      });
+    } catch (error) {
+      this.logger.error(
+        'Failed to send booking-completed email',
         error as Error,
       );
     }

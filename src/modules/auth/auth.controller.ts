@@ -7,6 +7,8 @@ import { GoogleAuthDto } from './dto/google-auth.dto';
 import { AppleAuthDto } from './dto/apple-auth.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { successResponse } from '../../common/utils/response.helper';
 
 @Controller('auth')
@@ -40,6 +42,22 @@ export class AuthController {
     await this.authService.resetPassword(dto);
     return successResponse(
       'Password reset successful. You can now sign in with your new password.',
+    );
+  }
+
+  @Post('verify-email')
+  @UseGuards(ThrottlerGuard)
+  async verifyEmail(@Body() dto: VerifyEmailDto) {
+    const data = await this.authService.verifyEmail(dto);
+    return successResponse('Email verified successfully', data);
+  }
+
+  @Post('resend-verification')
+  @UseGuards(ThrottlerGuard)
+  async resendVerification(@Body() dto: ResendVerificationDto) {
+    await this.authService.resendVerification(dto);
+    return successResponse(
+      'If an account needs verification, a new code has been sent.',
     );
   }
 

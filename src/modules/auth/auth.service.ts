@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   UnauthorizedException,
@@ -20,6 +21,7 @@ import {
   customerProfiles,
   providerProfiles,
   passwordResetCodes,
+  emailVerificationCodes,
 } from '../../db/schema';
 import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
@@ -28,6 +30,8 @@ import { GoogleAuthDto } from './dto/google-auth.dto';
 import { AppleAuthDto } from './dto/apple-auth.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -58,8 +62,8 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
-    const result = await this.db.transaction(async (tx) => {
-      const [user] = await tx
+    const user = await this.db.transaction(async (tx) => {
+      const [created] = await tx
         .insert(users)
         .values({ email: dto.email, passwordHash, role: dto.role })
         .returning();
@@ -67,21 +71,23 @@ export class AuthService {
       if (dto.role === 'customer') {
         await tx
           .insert(customerProfiles)
-          .values({ userId: user.id, fullName: dto.fullName });
+          .values({ userId: created.id, fullName: dto.fullName });
       } else {
         await tx.insert(providerProfiles).values({
-          userId: user.id,
+          userId: created.id,
           fullName: dto.fullName,
           tradeType: dto.tradeType!,
         });
       }
 
-      return this.buildTokenResponse(user.id, user.email, user.role);
+      return created;
     });
 
-    void this.mail.sendWelcome(dto.email, dto.fullName);
+    // No token yet: password signups must verify their email first (see
+    // verifyEmail). The welcome email is sent only after verification.
+    await this.issueEmailVerificationCode(user.id, user.email);
 
-    return result;
+    return { email: user.email };
   }
 
   async login(dto: LoginDto) {
@@ -95,6 +101,12 @@ export class AuthService {
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
+
+    if (!user.isEmailVerified) {
+      throw new ForbiddenException(
+        'Please verify your email before signing in',
+      );
+    }
 
     return this.buildTokenResponse(user.id, user.email, user.role);
   }
@@ -197,6 +209,127 @@ export class AuthService {
         .set({ usedAt: new Date() })
         .where(eq(passwordResetCodes.id, record.id));
     });
+  }
+
+  async verifyEmail(dto: VerifyEmailDto) {
+    // One generic error for every failure mode - never reveal whether the
+    // email exists, whether a code was issued, or which check failed.
+    const invalid = new BadRequestException('Invalid or expired code');
+
+    const user = await this.db.query.users.findFirst({
+      where: eq(users.email, dto.email),
+    });
+    if (!user?.passwordHash) throw invalid;
+
+    const record = await this.db.query.emailVerificationCodes.findFirst({
+      where: eq(emailVerificationCodes.userId, user.id),
+      orderBy: [desc(emailVerificationCodes.createdAt)],
+    });
+
+    const maxAttempts = this.config.getOrThrow<number>(
+      'emailVerification.maxAttempts',
+    );
+
+    if (
+      !record ||
+      record.usedAt ||
+      record.expiresAt.getTime() < Date.now() ||
+      record.attempts >= maxAttempts
+    ) {
+      throw invalid;
+    }
+
+    const valid = await bcrypt.compare(dto.code, record.codeHash);
+    if (!valid) {
+      await this.db
+        .update(emailVerificationCodes)
+        .set({ attempts: record.attempts + 1 })
+        .where(eq(emailVerificationCodes.id, record.id));
+      throw invalid;
+    }
+
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(users)
+        .set({ isEmailVerified: true, updatedAt: new Date() })
+        .where(eq(users.id, user.id));
+      await tx
+        .update(emailVerificationCodes)
+        .set({ usedAt: new Date() })
+        .where(eq(emailVerificationCodes.id, record.id));
+    });
+
+    // Account is now actually usable, so the welcome email is sent here
+    // rather than at registration.
+    const fullName = await this.getProfileName(user.id, user.role);
+    void this.mail.sendWelcome(user.email, fullName);
+
+    return this.buildTokenResponse(user.id, user.email, user.role);
+  }
+
+  async resendVerification(dto: ResendVerificationDto) {
+    const user = await this.db.query.users.findFirst({
+      where: eq(users.email, dto.email),
+    });
+
+    // Only send for an existing, unverified password account. OAuth accounts
+    // are already verified and have no password. Generic response either way.
+    if (!user?.passwordHash || user.isEmailVerified) return;
+
+    const cooldownSeconds = this.config.getOrThrow<number>(
+      'emailVerification.resendCooldownSeconds',
+    );
+    const latest = await this.db.query.emailVerificationCodes.findFirst({
+      where: eq(emailVerificationCodes.userId, user.id),
+      orderBy: [desc(emailVerificationCodes.createdAt)],
+    });
+    if (
+      latest &&
+      Date.now() - latest.createdAt.getTime() < cooldownSeconds * 1000
+    ) {
+      return;
+    }
+
+    await this.issueEmailVerificationCode(user.id, user.email);
+  }
+
+  private async issueEmailVerificationCode(userId: string, email: string) {
+    const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
+    const codeHash = await bcrypt.hash(code, 10);
+    const expiryMinutes = this.config.getOrThrow<number>(
+      'emailVerification.codeExpiryMinutes',
+    );
+    const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
+
+    // One live code per user: drop any prior codes before issuing a new one.
+    await this.db
+      .delete(emailVerificationCodes)
+      .where(eq(emailVerificationCodes.userId, userId));
+    await this.db
+      .insert(emailVerificationCodes)
+      .values({ userId, codeHash, expiresAt });
+
+    try {
+      await this.mail.sendEmailVerificationCode(email, code, expiryMinutes);
+    } catch {
+      // Already logged in MailService. Swallow so a transient mail outage
+      // doesn't fail the request - the code is stored and can be resent.
+    }
+  }
+
+  private async getProfileName(userId: string, role: string): Promise<string> {
+    if (role === 'customer') {
+      const profile = await this.db.query.customerProfiles.findFirst({
+        where: eq(customerProfiles.userId, userId),
+        columns: { fullName: true },
+      });
+      return profile?.fullName ?? 'there';
+    }
+    const profile = await this.db.query.providerProfiles.findFirst({
+      where: eq(providerProfiles.userId, userId),
+      columns: { fullName: true },
+    });
+    return profile?.fullName ?? 'there';
   }
 
   async googleAuth(dto: GoogleAuthDto) {

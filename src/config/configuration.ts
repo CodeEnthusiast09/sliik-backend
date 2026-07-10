@@ -69,6 +69,21 @@ export default () => ({
     ),
   },
 
+  emailVerification: {
+    codeExpiryMinutes: parseInt(
+      process.env.EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES ?? '15',
+      10,
+    ),
+    maxAttempts: parseInt(
+      process.env.EMAIL_VERIFICATION_MAX_ATTEMPTS ?? '5',
+      10,
+    ),
+    resendCooldownSeconds: parseInt(
+      process.env.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS ?? '60',
+      10,
+    ),
+  },
+
   throttle: {
     ttlSeconds: parseInt(process.env.THROTTLE_TTL_SECONDS ?? '900', 10),
     limit: parseInt(process.env.THROTTLE_LIMIT ?? '3', 10),

@@ -125,6 +125,21 @@ class EnvironmentVariables {
   @IsOptional()
   @IsNumber()
   @Min(1)
+  EMAIL_VERIFICATION_CODE_EXPIRY_MINUTES?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  EMAIL_VERIFICATION_MAX_ATTEMPTS?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
   THROTTLE_TTL_SECONDS?: number;
 
   @IsOptional()

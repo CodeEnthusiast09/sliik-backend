@@ -300,6 +300,10 @@ export class BookingsService {
       `Your appointment with ${booking.provider.fullName} is complete - leave a review!`,
       { bookingId },
     );
+    void this.mail.sendBookingCompleted(booking.customer.userId, {
+      providerName: booking.provider.fullName,
+      serviceName: booking.service?.name ?? 'Sliik Deal',
+    });
 
     return updated;
   }
