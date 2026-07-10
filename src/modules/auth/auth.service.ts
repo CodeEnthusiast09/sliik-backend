@@ -350,6 +350,7 @@ export class AuthService {
       email: payload.email ?? `${payload.sub}@google.com`,
       fullName: payload.name ?? 'User',
       role: dto.role,
+      emailVerified: payload.email_verified === true,
     });
   }
 
@@ -370,6 +371,8 @@ export class AuthService {
         `${payload.sub}@privaterelay.appleid.com`,
       fullName: dto.fullName ?? 'User',
       role: dto.role,
+      // Apple only ever returns a verified email (real or private relay).
+      emailVerified: true,
     });
   }
 
@@ -379,6 +382,7 @@ export class AuthService {
     email: string;
     fullName: string;
     role: 'customer' | 'provider';
+    emailVerified: boolean;
   }) {
     const whereClause = params.googleId
       ? eq(users.googleId, params.googleId)
@@ -394,6 +398,35 @@ export class AuthService {
         existing.email,
         existing.role,
       );
+    }
+
+    // No social match yet. If an account already exists for this email, link
+    // the social id to it instead of inserting a duplicate (the unique email
+    // constraint would reject the insert anyway). Only link when the provider
+    // verified the email, so an unverified-email token can't claim another
+    // person's account.
+    const byEmail = await this.db.query.users.findFirst({
+      where: eq(users.email, params.email),
+    });
+
+    if (byEmail) {
+      if (!params.emailVerified) {
+        throw new UnauthorizedException(
+          'Email not verified by provider; cannot link account',
+        );
+      }
+
+      const [linked] = await this.db
+        .update(users)
+        .set(
+          params.googleId
+            ? { googleId: params.googleId }
+            : { appleId: params.appleId },
+        )
+        .where(eq(users.id, byEmail.id))
+        .returning();
+
+      return this.buildTokenResponse(linked.id, linked.email, linked.role);
     }
 
     return this.db.transaction(async (tx) => {
