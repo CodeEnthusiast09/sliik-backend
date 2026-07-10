@@ -19,6 +19,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { PayoutsService } from '../payouts/payouts.service';
 import { ProvidersService } from '../providers/providers.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MailService } from '../mail/mail.service';
 
 type Db = NodePgDatabase<typeof schema>;
 type BookingStatus =
@@ -31,6 +32,7 @@ export class BookingsService {
     private payoutsService: PayoutsService,
     private providersService: ProvidersService,
     private notificationsService: NotificationsService,
+    private mail: MailService,
   ) {}
 
   private async getCustomerProfile(userId: string) {
@@ -132,6 +134,12 @@ export class BookingsService {
       `${customer.fullName} requested ${service.name}`,
       { bookingId: booking.id },
     );
+    void this.mail.sendBookingRequest(provider.userId, {
+      customerName: customer.fullName,
+      serviceName: service.name,
+      scheduledAt: booking.scheduledAt,
+      amount: booking.totalAmount,
+    });
 
     return booking;
   }
@@ -187,6 +195,12 @@ export class BookingsService {
       `${booking.provider.fullName} confirmed your booking`,
       { bookingId },
     );
+    void this.mail.sendBookingConfirmed(booking.customer.userId, {
+      providerName: booking.provider.fullName,
+      serviceName: booking.service?.name ?? 'Sliik Deal',
+      scheduledAt: booking.scheduledAt,
+      amount: booking.totalAmount,
+    });
 
     return updated;
   }
@@ -212,6 +226,10 @@ export class BookingsService {
       `${booking.provider.fullName} declined your booking request`,
       { bookingId },
     );
+    void this.mail.sendBookingDeclined(booking.customer.userId, {
+      providerName: booking.provider.fullName,
+      serviceName: booking.service?.name ?? 'Sliik Deal',
+    });
 
     return updated;
   }
@@ -252,6 +270,11 @@ export class BookingsService {
       `${cancellerName} cancelled the booking`,
       { bookingId },
     );
+    void this.mail.sendBookingCancelled(recipientUserId, {
+      cancellerName,
+      serviceName: booking.service?.name ?? 'Sliik Deal',
+      scheduledAt: booking.scheduledAt,
+    });
 
     return updated;
   }

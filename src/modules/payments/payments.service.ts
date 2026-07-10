@@ -16,6 +16,7 @@ import { bookings, customerProfiles, payments } from '../../db/schema';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PayoutsService } from '../payouts/payouts.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MailService } from '../mail/mail.service';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -27,6 +28,7 @@ export class PaymentsService {
     private http: HttpService,
     private payoutsService: PayoutsService,
     private notificationsService: NotificationsService,
+    private mail: MailService,
   ) {}
 
   async initiatePayment(
@@ -149,7 +151,7 @@ export class PaymentsService {
 
       const booking = await this.db.query.bookings.findFirst({
         where: eq(bookings.id, bookingId),
-        with: { customer: true, provider: true },
+        with: { customer: true, provider: true, service: true },
       });
       if (booking) {
         await this.notificationsService.create(
@@ -166,6 +168,12 @@ export class PaymentsService {
           `Your payment of ₦${booking.totalAmount} was successful`,
           { bookingId },
         );
+        void this.mail.sendPaymentReceipt(booking.customer.userId, {
+          providerName: booking.provider.fullName,
+          serviceName: booking.service?.name ?? 'Sliik Deal',
+          amount: booking.totalAmount,
+          reference,
+        });
       }
     }
   }

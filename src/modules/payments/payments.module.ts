@@ -6,9 +6,16 @@ import { AuthModule } from '../auth/auth.module';
 import { PaystackWebhookGuard } from '../../common/guards/paystack-webhook.guard';
 import { PayoutsModule } from '../payouts/payouts.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
-  imports: [AuthModule, HttpModule, PayoutsModule, NotificationsModule],
+  imports: [
+    AuthModule,
+    HttpModule,
+    PayoutsModule,
+    NotificationsModule,
+    MailModule,
+  ],
   controllers: [PaymentsController],
   providers: [PaymentsService, PaystackWebhookGuard],
   exports: [PaymentsService],

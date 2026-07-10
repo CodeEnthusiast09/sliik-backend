@@ -58,7 +58,7 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.password, 10);
 
-    return this.db.transaction(async (tx) => {
+    const result = await this.db.transaction(async (tx) => {
       const [user] = await tx
         .insert(users)
         .values({ email: dto.email, passwordHash, role: dto.role })
@@ -78,6 +78,10 @@ export class AuthService {
 
       return this.buildTokenResponse(user.id, user.email, user.role);
     });
+
+    void this.mail.sendWelcome(dto.email, dto.fullName);
+
+    return result;
   }
 
   async login(dto: LoginDto) {
