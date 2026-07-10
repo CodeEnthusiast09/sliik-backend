@@ -20,6 +20,20 @@ import { MailService } from '../mail/mail.service';
 
 type Db = NodePgDatabase<typeof schema>;
 
+interface PaystackInitializeResponse {
+  data: {
+    authorization_url: string;
+    access_code: string;
+    reference: string;
+  };
+}
+
+interface PaystackVerifyResponse {
+  data: {
+    status: string;
+  };
+}
+
 @Injectable()
 export class PaymentsService {
   constructor(
@@ -89,7 +103,7 @@ export class PaymentsService {
     const reference = `sliik_${bookingId}_${Date.now()}`;
 
     const { data } = await firstValueFrom(
-      this.http.post(
+      this.http.post<PaystackInitializeResponse>(
         'https://api.paystack.co/transaction/initialize',
         {
           email,
@@ -98,7 +112,7 @@ export class PaymentsService {
           reference,
           metadata: { bookingId, customerName },
           subaccount: payoutAccount.paystackSubaccountCode,
-          callback_url: this.config.getOrThrow('payment.successUrl'),
+          callback_url: this.config.getOrThrow<string>('payment.successUrl'),
         },
         {
           headers: {
@@ -194,11 +208,14 @@ export class PaymentsService {
     bookingId: string,
   ): Promise<boolean> {
     const { data } = await firstValueFrom(
-      this.http.get(`https://api.paystack.co/transaction/verify/${reference}`, {
-        headers: {
-          Authorization: `Bearer ${this.config.getOrThrow('paystack.secretKey')}`,
+      this.http.get<PaystackVerifyResponse>(
+        `https://api.paystack.co/transaction/verify/${reference}`,
+        {
+          headers: {
+            Authorization: `Bearer ${this.config.getOrThrow('paystack.secretKey')}`,
+          },
         },
-      }),
+      ),
     );
 
     if (data.data.status === 'success') {

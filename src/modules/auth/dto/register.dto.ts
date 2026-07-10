@@ -22,7 +22,7 @@ export class RegisterDto {
   @IsNotEmpty()
   fullName: string;
 
-  @ValidateIf((o) => o.role === 'provider')
+  @ValidateIf((o: RegisterDto) => o.role === 'provider')
   @IsString()
   @IsNotEmpty()
   tradeType?: string;

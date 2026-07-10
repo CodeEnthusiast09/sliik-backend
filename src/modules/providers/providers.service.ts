@@ -7,7 +7,6 @@ import {
   users,
   providerProfiles,
   services,
-  portfolio,
   providerAvailability,
   providerDaysOff,
   bookings,
