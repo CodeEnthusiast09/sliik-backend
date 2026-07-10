@@ -26,5 +26,7 @@ export const providerDaysOff = pgTable('provider_days_off', {
     .references(() => providerProfiles.id, { onDelete: 'cascade' }),
   date: date('date').notNull(),
   reason: varchar('reason', { length: 255 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

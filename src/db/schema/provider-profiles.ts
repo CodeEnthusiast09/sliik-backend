@@ -29,6 +29,10 @@ export const providerProfiles = pgTable('provider_profiles', {
     .notNull()
     .default('0.00'),
   totalReviews: integer('total_reviews').notNull().default(0),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

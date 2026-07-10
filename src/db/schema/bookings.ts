@@ -45,7 +45,7 @@ export const bookings = pgTable('bookings', {
     onDelete: 'set null',
   }),
   status: bookingStatusEnum('status').notNull().default('pending'),
-  scheduledAt: timestamp('scheduled_at').notNull(),
+  scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
   notes: text('notes'),
   totalAmount: numeric('total_amount', { precision: 12, scale: 2 }).notNull(),
   paymentStatus: paymentStatusEnum('payment_status')
@@ -55,8 +55,12 @@ export const bookings = pgTable('bookings', {
   paymentReference: text('payment_reference'),
   // Set by the appointment-reminder cron once each reminder fires, so a
   // booking never gets the same reminder twice across poll ticks.
-  remindedAt24h: timestamp('reminded_at_24h'),
-  remindedAt2h: timestamp('reminded_at_2h'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  remindedAt24h: timestamp('reminded_at_24h', { withTimezone: true }),
+  remindedAt2h: timestamp('reminded_at_2h', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

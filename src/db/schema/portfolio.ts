@@ -8,5 +8,7 @@ export const portfolio = pgTable('portfolio', {
     .references(() => providerProfiles.id, { onDelete: 'cascade' }),
   imageUrl: varchar('image_url', { length: 500 }).notNull(),
   caption: text('caption'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

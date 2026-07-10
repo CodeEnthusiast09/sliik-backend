@@ -20,6 +20,10 @@ export const providerPayoutAccounts = pgTable('provider_payout_accounts', {
   accountNumber: varchar('account_number', { length: 20 }).notNull(),
   accountName: varchar('account_name', { length: 255 }).notNull(),
   verified: boolean('verified').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

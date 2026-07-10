@@ -8,7 +8,9 @@ export const conversations = pgTable('conversations', {
     .notNull()
     .unique()
     .references(() => bookings.id, { onDelete: 'cascade' }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const messages = pgTable('messages', {
@@ -20,6 +22,8 @@ export const messages = pgTable('messages', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   content: text('content').notNull(),
-  readAt: timestamp('read_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

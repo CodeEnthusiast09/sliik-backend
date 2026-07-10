@@ -36,6 +36,8 @@ export const notifications = pgTable('notifications', {
   title: text('title').notNull(),
   body: text('body').notNull(),
   data: jsonb('data'),
-  readAt: timestamp('read_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  readAt: timestamp('read_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

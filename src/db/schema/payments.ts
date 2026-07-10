@@ -25,5 +25,7 @@ export const payments = pgTable('payments', {
   provider: varchar('provider', { length: 20 }).notNull(),
   reference: varchar('reference', { length: 255 }).notNull().unique(),
   status: paymentTxStatusEnum('status').notNull().default('pending'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

@@ -20,6 +20,10 @@ export const services = pgTable('services', {
   price: numeric('price', { precision: 12, scale: 2 }).notNull(),
   durationMinutes: integer('duration_minutes').notNull(),
   isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

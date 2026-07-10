@@ -31,12 +31,16 @@ export const sliikOffers = pgTable('sliik_offers', {
   serviceType: varchar('service_type', { length: 100 }).notNull(),
   description: text('description').notNull(),
   budget: numeric('budget', { precision: 12, scale: 2 }),
-  preferredFrom: timestamp('preferred_from').notNull(),
-  preferredTo: timestamp('preferred_to').notNull(),
+  preferredFrom: timestamp('preferred_from', { withTimezone: true }).notNull(),
+  preferredTo: timestamp('preferred_to', { withTimezone: true }).notNull(),
   city: varchar('city', { length: 100 }).notNull(),
   status: offerStatusEnum('status').notNull().default('open'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const sliikOfferResponses = pgTable('sliik_offer_responses', {
@@ -50,6 +54,10 @@ export const sliikOfferResponses = pgTable('sliik_offer_responses', {
   offeredPrice: numeric('offered_price', { precision: 12, scale: 2 }).notNull(),
   message: text('message'),
   status: offerResponseStatusEnum('status').notNull().default('pending'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

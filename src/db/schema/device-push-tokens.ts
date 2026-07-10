@@ -8,6 +8,10 @@ export const devicePushTokens = pgTable('device_push_tokens', {
     .references(() => users.id, { onDelete: 'cascade' }),
   expoPushToken: varchar('expo_push_token', { length: 255 }).notNull().unique(),
   platform: varchar('platform', { length: 20 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
