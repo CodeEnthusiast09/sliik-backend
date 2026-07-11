@@ -20,6 +20,7 @@ import { PayoutsService } from '../payouts/payouts.service';
 import { ProvidersService } from '../providers/providers.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
+import { PaymentsService } from '../payments/payments.service';
 
 type Db = NodePgDatabase<typeof schema>;
 type BookingStatus =
@@ -33,6 +34,7 @@ export class BookingsService {
     private providersService: ProvidersService,
     private notificationsService: NotificationsService,
     private mail: MailService,
+    private paymentsService: PaymentsService,
   ) {}
 
   private async getCustomerProfile(userId: string) {
@@ -213,9 +215,21 @@ export class BookingsService {
       throw new ForbiddenException('Not your booking');
     this.assertStatus(booking, ['pending']);
 
+    // Refund BEFORE flipping status - if Paystack rejects the refund, the
+    // whole decline aborts here rather than leaving a booking marked
+    // declined while still showing as paid with no refund issued.
+    const wasPaid = booking.paymentStatus === 'paid';
+    if (wasPaid) {
+      await this.paymentsService.refundPayment(bookingId);
+    }
+
     const [updated] = await this.db
       .update(bookings)
-      .set({ status: 'declined', updatedAt: new Date() })
+      .set({
+        status: 'declined',
+        updatedAt: new Date(),
+        ...(wasPaid ? { paymentStatus: 'refunded' as const } : {}),
+      })
       .where(eq(bookings.id, bookingId))
       .returning();
 
@@ -250,9 +264,19 @@ export class BookingsService {
       role === 'provider' ? ['confirmed'] : ['pending', 'confirmed'];
     this.assertStatus(booking, allowedStatuses);
 
+    // Refund BEFORE flipping status - see declineBooking for why.
+    const wasPaid = booking.paymentStatus === 'paid';
+    if (wasPaid) {
+      await this.paymentsService.refundPayment(bookingId);
+    }
+
     const [updated] = await this.db
       .update(bookings)
-      .set({ status: 'cancelled', updatedAt: new Date() })
+      .set({
+        status: 'cancelled',
+        updatedAt: new Date(),
+        ...(wasPaid ? { paymentStatus: 'refunded' as const } : {}),
+      })
       .where(eq(bookings.id, bookingId))
       .returning();
 

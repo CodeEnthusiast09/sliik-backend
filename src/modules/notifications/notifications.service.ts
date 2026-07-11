@@ -23,6 +23,7 @@ export type NotificationType =
   | 'deal_claimed'
   | 'payment_received'
   | 'payment_sent'
+  | 'payment_refunded'
   | 'review_received'
   | 'message_received'
   | 'system';

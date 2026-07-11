@@ -34,6 +34,12 @@ interface PaystackVerifyResponse {
   };
 }
 
+interface PaystackRefundResponse {
+  data: {
+    status: string;
+  };
+}
+
 @Injectable()
 export class PaymentsService {
   constructor(
@@ -132,6 +138,55 @@ export class PaymentsService {
     });
 
     return { checkoutUrl: data.data.authorization_url, reference };
+  }
+
+  // Called by BookingsService when a PAID booking is cancelled or declined.
+  // Always refunds the full original amount (no commission withheld, no fee
+  // passed to the customer) - simplest policy, avoids a dispute on top of an
+  // already-negative interaction. Throws if there's no successful payment to
+  // refund or if Paystack rejects the refund, so the caller can abort the
+  // cancel/decline entirely rather than leaving a half-updated booking.
+  async refundPayment(bookingId: string) {
+    const payment = await this.db.query.payments.findFirst({
+      where: eq(payments.bookingId, bookingId),
+      orderBy: (p, { desc }) => [desc(p.createdAt)],
+    });
+    if (!payment || payment.status !== 'success') {
+      throw new BadRequestException(
+        'No successful payment found to refund for this booking',
+      );
+    }
+
+    await firstValueFrom(
+      this.http.post<PaystackRefundResponse>(
+        'https://api.paystack.co/refund',
+        { transaction: payment.reference },
+        {
+          headers: {
+            Authorization: `Bearer ${this.config.getOrThrow('paystack.secretKey')}`,
+          },
+        },
+      ),
+    );
+
+    await this.db
+      .update(payments)
+      .set({ status: 'refunded' })
+      .where(eq(payments.id, payment.id));
+
+    const booking = await this.db.query.bookings.findFirst({
+      where: eq(bookings.id, bookingId),
+      with: { customer: true },
+    });
+    if (booking) {
+      await this.notificationsService.create(
+        booking.customer.userId,
+        'payment_refunded',
+        'Payment refunded',
+        `Your payment of ₦${booking.totalAmount} was refunded`,
+        { bookingId },
+      );
+    }
   }
 
   async handlePaystackWebhook(payload: Record<string, unknown>) {

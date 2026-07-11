@@ -1,0 +1,1 @@
+ALTER TYPE "public"."notification_type" ADD VALUE 'payment_refunded' BEFORE 'review_received';
