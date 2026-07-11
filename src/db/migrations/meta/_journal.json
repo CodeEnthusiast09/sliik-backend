@@ -57,6 +57,13 @@
       "when": 1783685626586,
       "tag": "0007_fine_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783778467372,
+      "tag": "0008_quiet_hiroim",
+      "breakpoints": true
     }
   ]
 }
