@@ -6,6 +6,7 @@ import {
   MinLength,
   ValidateIf,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class RegisterDto {
   @IsEmail()
@@ -25,5 +26,8 @@ export class RegisterDto {
   @ValidateIf((o: RegisterDto) => o.role === 'provider')
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   tradeType?: string;
 }

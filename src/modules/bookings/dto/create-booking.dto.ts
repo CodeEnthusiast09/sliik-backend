@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
 } from 'class-validator';
 
 export class CreateBookingDto {
@@ -19,5 +20,6 @@ export class CreateBookingDto {
   @IsString()
   @IsNotEmpty()
   @IsOptional()
+  @MaxLength(200)
   notes?: string;
 }

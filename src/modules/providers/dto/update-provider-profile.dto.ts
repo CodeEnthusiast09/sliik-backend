@@ -6,6 +6,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class UpdateProviderProfileDto {
   @IsOptional()
@@ -24,6 +25,9 @@ export class UpdateProviderProfileDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   tradeType?: string;
 
   @IsOptional()

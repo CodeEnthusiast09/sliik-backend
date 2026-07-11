@@ -1,5 +1,17 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { SQL, and, eq, gt, gte, inArray, lt, sql } from 'drizzle-orm';
+import {
+  SQL,
+  and,
+  desc,
+  eq,
+  gt,
+  gte,
+  ilike,
+  inArray,
+  lt,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE } from '../../db';
 import * as schema from '../../db/schema';
@@ -17,6 +29,13 @@ import { FindProvidersQueryDto } from './dto/find-providers-query.dto';
 import { GetAvailableSlotsQueryDto } from './dto/get-available-slots-query.dto';
 
 type Db = NodePgDatabase<typeof schema>;
+
+// Slots are offered at a fixed cadence regardless of the service's own
+// duration - a candidate slot only needs to start inside the provider's
+// working window, it's no longer required to finish before closing time.
+// A long service can run past close; the provider is the one who judges
+// whether that's workable and declines the request if it isn't.
+const SLOT_INTERVAL_MINUTES = 30;
 
 function parseTimeToMinutes(time: string): number {
   const [hours, minutes] = time.split(':').map(Number);
@@ -156,8 +175,8 @@ export class ProvidersService {
     const slots: string[] = [];
     for (
       let slotStart = dayStartMinutes;
-      slotStart + service.durationMinutes <= dayEndMinutes;
-      slotStart += service.durationMinutes
+      slotStart < dayEndMinutes;
+      slotStart += SLOT_INTERVAL_MINUTES
     ) {
       const slotIso = minutesToIsoDateTime(query.date, slotStart);
       const slotStartMs = new Date(slotIso).getTime();
@@ -192,7 +211,18 @@ export class ProvidersService {
       conditions.push(eq(providerProfiles.city, query.city));
     }
     if (query.tradeType) {
-      conditions.push(eq(providerProfiles.tradeType, query.tradeType));
+      // ilike with no wildcards is a case-insensitive equality check - defends
+      // against pre-existing mixed-case rows even though writes now normalize.
+      conditions.push(ilike(providerProfiles.tradeType, query.tradeType));
+    }
+    if (query.search) {
+      const term = `%${query.search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(providerProfiles.fullName, term),
+          ilike(providerProfiles.tradeType, term),
+        )!,
+      );
     }
     if (query.minRating !== undefined) {
       conditions.push(
@@ -203,7 +233,11 @@ export class ProvidersService {
     const hasLocation = query.lat !== undefined && query.lng !== undefined;
     const radiusKm = query.radiusKm ?? 10;
 
-    if (hasLocation) {
+    // A text search is a specific-target query - the customer already knows
+    // who/what they're looking for, so distance shouldn't silently exclude a
+    // valid name/tradeType match. Only constrain by radius for plain
+    // browsing (no search term).
+    if (hasLocation && !query.search) {
       const distanceExpr = sql<number>`
         6371 * acos(
           least(1.0,
@@ -222,6 +256,12 @@ export class ProvidersService {
       .select()
       .from(providerProfiles)
       .where(where)
+      // Offset pagination needs a total order to be stable across separate
+      // requests - without it, concurrent inserts (or even just Postgres's
+      // own lack of an ordering guarantee) can return the same row on two
+      // different pages. createdAt alone isn't enough since bulk inserts can
+      // share an identical timestamp, so id breaks ties.
+      .orderBy(desc(providerProfiles.createdAt), providerProfiles.id)
       .limit(limit)
       .offset(offset);
 

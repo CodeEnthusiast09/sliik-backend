@@ -11,6 +11,10 @@ export class FindProvidersQueryDto {
   tradeType?: string;
 
   @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
