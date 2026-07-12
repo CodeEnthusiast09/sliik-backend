@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUrl,
   MaxLength,
 } from 'class-validator';
 
@@ -33,4 +34,8 @@ export class CreateOfferDto {
   @IsNotEmpty()
   @MaxLength(100)
   city: string;
+
+  @IsUrl()
+  @IsOptional()
+  referenceImageUrl?: string;
 }

@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { and, eq, gte, inArray, lt, ne } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE } from '../../db';
@@ -21,6 +22,11 @@ import { CreateOfferDto } from './dto/create-offer.dto';
 import { RespondToOfferDto } from './dto/respond-to-offer.dto';
 import { PayoutsService } from '../payouts/payouts.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  canonicalCityEq,
+  getCanonicalCity,
+} from '../../common/utils/location.helper';
+import { assertCloudinaryUrl } from '../../common/utils/cloudinary.helper';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -36,6 +42,7 @@ export class OffersService {
     @Inject(DRIZZLE) private db: Db,
     private payoutsService: PayoutsService,
     private notificationsService: NotificationsService,
+    private config: ConfigService,
   ) {}
 
   private async getCustomerProfile(userId: string) {
@@ -66,6 +73,13 @@ export class OffersService {
       throw new BadRequestException('preferredTo must be after preferredFrom');
     }
 
+    if (dto.referenceImageUrl) {
+      assertCloudinaryUrl(
+        this.config.getOrThrow<string>('cloudinary.cloudName'),
+        dto.referenceImageUrl,
+      );
+    }
+
     const [offer] = await this.db
       .insert(sliikOffers)
       .values({
@@ -76,13 +90,14 @@ export class OffersService {
         preferredFrom,
         preferredTo,
         city: dto.city,
+        referenceImageUrl: dto.referenceImageUrl,
       })
       .returning();
 
     // Fan-out: every provider in the same city is a candidate bidder,
     // mirroring getOpenOffers' own eligibility filter (city match only).
     const nearbyProviders = await this.db.query.providerProfiles.findMany({
-      where: eq(providerProfiles.city, dto.city),
+      where: canonicalCityEq(providerProfiles.city, dto.city),
     });
     await Promise.all(
       nearbyProviders.map((provider) =>
@@ -115,7 +130,7 @@ export class OffersService {
     return this.db.query.sliikOffers.findMany({
       where: and(
         eq(sliikOffers.status, 'open'),
-        eq(sliikOffers.city, provider.city ?? ''),
+        canonicalCityEq(sliikOffers.city, provider.city ?? ''),
       ),
       with: { customer: true },
       orderBy: (o, { desc }) => [desc(o.createdAt)],
@@ -155,7 +170,9 @@ export class OffersService {
       const hasResponded = offer.responses.some(
         (response) => response.providerId === provider.id,
       );
-      const sameCity = !!provider.city && provider.city === offer.city;
+      const sameCity =
+        !!provider.city &&
+        getCanonicalCity(provider.city) === getCanonicalCity(offer.city);
       if (!sameCity && !hasResponded) {
         throw new ForbiddenException('Access denied');
       }

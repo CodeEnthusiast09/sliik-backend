@@ -22,6 +22,7 @@ import { ClaimDealDto } from './dto/claim-deal.dto';
 import { PayoutsService } from '../payouts/payouts.service';
 import { ProvidersService } from '../providers/providers.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { canonicalCityEq } from '../../common/utils/location.helper';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -92,7 +93,7 @@ export class DealsService {
 
     if (provider.city) {
       const nearbyCustomers = await this.db.query.customerProfiles.findMany({
-        where: eq(customerProfiles.city, provider.city),
+        where: canonicalCityEq(customerProfiles.city, provider.city),
       });
       await Promise.all(
         nearbyCustomers.map((customer) =>

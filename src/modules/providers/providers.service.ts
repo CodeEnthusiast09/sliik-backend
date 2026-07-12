@@ -27,6 +27,7 @@ import {
 import { UpdateProviderProfileDto } from './dto/update-provider-profile.dto';
 import { FindProvidersQueryDto } from './dto/find-providers-query.dto';
 import { GetAvailableSlotsQueryDto } from './dto/get-available-slots-query.dto';
+import { canonicalCityEq } from '../../common/utils/location.helper';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -208,7 +209,7 @@ export class ProvidersService {
     );
 
     if (query.city) {
-      conditions.push(eq(providerProfiles.city, query.city));
+      conditions.push(canonicalCityEq(providerProfiles.city, query.city));
     }
     if (query.tradeType) {
       // ilike with no wildcards is a case-insensitive equality check - defends

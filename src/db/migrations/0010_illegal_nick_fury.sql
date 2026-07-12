@@ -1,0 +1,1 @@
+ALTER TABLE "sliik_offers" ADD COLUMN "reference_image_url" varchar(500);

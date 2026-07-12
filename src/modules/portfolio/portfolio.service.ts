@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -12,6 +11,7 @@ import { DRIZZLE } from '../../db';
 import * as schema from '../../db/schema';
 import { portfolio, providerProfiles } from '../../db/schema';
 import { CreatePortfolioItemDto } from './dto/create-portfolio-item.dto';
+import { assertCloudinaryUrl } from '../../common/utils/cloudinary.helper';
 
 type Db = NodePgDatabase<typeof schema>;
 
@@ -30,19 +30,12 @@ export class PortfolioService {
     return profile;
   }
 
-  private assertCloudinaryUrl(imageUrl: string) {
-    const cloudName = this.config.getOrThrow<string>('cloudinary.cloudName');
-    const allowedPrefix = `https://res.cloudinary.com/${cloudName}/`;
-    if (!imageUrl.startsWith(allowedPrefix)) {
-      throw new BadRequestException(
-        'imageUrl must be a Cloudinary URL returned by the uploads endpoint',
-      );
-    }
-  }
-
   async addItem(userId: string, dto: CreatePortfolioItemDto) {
     const profile = await this.getProviderProfile(userId);
-    this.assertCloudinaryUrl(dto.imageUrl);
+    assertCloudinaryUrl(
+      this.config.getOrThrow<string>('cloudinary.cloudName'),
+      dto.imageUrl,
+    );
 
     const [item] = await this.db
       .insert(portfolio)

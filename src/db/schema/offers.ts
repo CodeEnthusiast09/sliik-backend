@@ -34,6 +34,7 @@ export const sliikOffers = pgTable('sliik_offers', {
   preferredFrom: timestamp('preferred_from', { withTimezone: true }).notNull(),
   preferredTo: timestamp('preferred_to', { withTimezone: true }).notNull(),
   city: varchar('city', { length: 100 }).notNull(),
+  referenceImageUrl: varchar('reference_image_url', { length: 500 }),
   status: offerStatusEnum('status').notNull().default('open'),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
