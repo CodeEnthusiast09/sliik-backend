@@ -16,4 +16,5 @@ export * from './payouts';
 export * from './password-reset-codes';
 export * from './email-verification-codes';
 export * from './favorites';
+export * from './reports';
 export * from './relations';

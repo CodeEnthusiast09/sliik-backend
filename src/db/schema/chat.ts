@@ -1,6 +1,12 @@
-import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, pgEnum } from 'drizzle-orm/pg-core';
 import { bookings } from './bookings';
 import { users } from './users';
+
+export const messageTypeEnum = pgEnum('message_type', [
+  'text',
+  'image',
+  'audio',
+]);
 
 export const conversations = pgTable('conversations', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -21,8 +27,11 @@ export const messages = pgTable('messages', {
   senderId: uuid('sender_id')
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
+  type: messageTypeEnum('type').notNull().default('text'),
   content: text('content').notNull(),
+  mediaUrl: text('media_url'),
   readAt: timestamp('read_at', { withTimezone: true }),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
     .defaultNow(),

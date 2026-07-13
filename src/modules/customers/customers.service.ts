@@ -15,9 +15,11 @@ export class CustomersService {
   async getProfile(userId: string) {
     const profile = await this.db.query.customerProfiles.findFirst({
       where: eq(customerProfiles.userId, userId),
+      with: { user: { columns: { email: true } } },
     });
     if (!profile) throw new NotFoundException('Profile not found');
-    return profile;
+    const { user, ...rest } = profile;
+    return { ...rest, email: user.email };
   }
 
   async updateProfile(userId: string, dto: UpdateCustomerProfileDto) {

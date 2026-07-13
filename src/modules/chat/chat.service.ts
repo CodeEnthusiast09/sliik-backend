@@ -103,6 +103,13 @@ export class ChatService {
     this.assertParticipant(userId, booking);
   }
 
+  async getOtherParticipantUserId(userId: string, bookingId: string) {
+    const booking = await this.getBookingOrThrow(bookingId);
+    return booking.customer.userId === userId
+      ? booking.provider.userId
+      : booking.customer.userId;
+  }
+
   async sendMessage(userId: string, dto: SendMessageDto) {
     const booking = await this.getBookingOrThrow(dto.bookingId);
     this.assertParticipant(userId, booking);
@@ -114,7 +121,9 @@ export class ChatService {
       .values({
         conversationId: conversation.id,
         senderId: userId,
-        content: dto.content,
+        type: dto.type ?? 'text',
+        content: dto.content ?? '',
+        mediaUrl: dto.mediaUrl ?? null,
       })
       .returning();
 
@@ -125,6 +134,14 @@ export class ChatService {
     const senderName = isSenderCustomer
       ? booking.customer.fullName
       : booking.provider.fullName;
+    // An image/audio message can carry no caption - fall back to a label so
+    // the push notification body is never blank.
+    const notificationBody =
+      dto.type === 'image'
+        ? '📷 Photo'
+        : dto.type === 'audio'
+          ? '🎤 Voice message'
+          : dto.content;
     // In-app delivery while the recipient has the app open is already
     // handled live by ChatGateway's own socket broadcast - this push is
     // purely for reaching them once they've backgrounded the app.
@@ -132,7 +149,7 @@ export class ChatService {
       recipientUserId,
       'message_received',
       senderName,
-      dto.content,
+      notificationBody,
       { bookingId: dto.bookingId },
     );
 
@@ -175,6 +192,32 @@ export class ChatService {
       );
   }
 
+  // "Delete for everyone" - only the sender can retract their own message,
+  // and the content/mediaUrl are actually cleared (not just hidden behind a
+  // flag) so a raw API response can't leak what was deleted.
+  async deleteMessage(userId: string, messageId: string) {
+    const message = await this.db.query.messages.findFirst({
+      where: eq(messages.id, messageId),
+    });
+    if (!message) throw new NotFoundException('Message not found');
+    if (message.senderId !== userId) {
+      throw new ForbiddenException('You can only delete your own messages');
+    }
+
+    const conversation = await this.db.query.conversations.findFirst({
+      where: eq(conversations.id, message.conversationId),
+    });
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    const [updated] = await this.db
+      .update(messages)
+      .set({ content: '', mediaUrl: null, deletedAt: new Date() })
+      .where(eq(messages.id, messageId))
+      .returning();
+
+    return { message: updated, bookingId: conversation.bookingId };
+  }
+
   async getMyConversations(userId: string, role: string) {
     if (role === 'customer') {
       const customer = await this.getCustomerProfile(userId);
@@ -198,9 +241,12 @@ export class ChatService {
       // Also excludes cancelled/declined bookings - otherwise a dead
       // conversation would still show up in the list and 400 as soon as
       // it's opened, since getMessages enforces the same status scoping.
-      return rows.filter(
-        (b) => b.conversation !== null && CHATTABLE_STATUSES.includes(b.status),
-      );
+      return rows
+        .filter(
+          (b) =>
+            b.conversation !== null && CHATTABLE_STATUSES.includes(b.status),
+        )
+        .sort(byLastActivityDesc);
     }
 
     const provider = await this.getProviderProfile(userId);
@@ -221,8 +267,29 @@ export class ChatService {
       },
       orderBy: (b, { desc }) => [desc(b.createdAt)],
     });
-    return rows.filter(
-      (b) => b.conversation !== null && CHATTABLE_STATUSES.includes(b.status),
-    );
+    return rows
+      .filter(
+        (b) => b.conversation !== null && CHATTABLE_STATUSES.includes(b.status),
+      )
+      .sort(byLastActivityDesc);
   }
+}
+
+type ConversationRow = {
+  createdAt: Date;
+  conversation: { createdAt: Date; messages: { createdAt: Date }[] } | null;
+};
+
+// Most recent message wins; falls back to the conversation's own createdAt
+// (no messages yet) and finally the booking's createdAt as a last resort -
+// sorting by booking creation date alone left old bookings stuck at the
+// bottom even right after a brand new message came in.
+function lastActivityAt(row: ConversationRow): number {
+  const lastMessageAt = row.conversation?.messages[0]?.createdAt;
+  const fallback = row.conversation?.createdAt ?? row.createdAt;
+  return (lastMessageAt ?? fallback).getTime();
+}
+
+function byLastActivityDesc(a: ConversationRow, b: ConversationRow): number {
+  return lastActivityAt(b) - lastActivityAt(a);
 }

@@ -26,4 +26,21 @@ export class UploadsService {
 
     return { url: result.secure_url };
   }
+
+  async uploadAudio(
+    file: Express.Multer.File,
+    mimeType: string,
+  ): Promise<{ url: string }> {
+    const dataUri = `data:${mimeType};base64,${file.buffer.toString('base64')}`;
+
+    // Cloudinary has no dedicated "audio" resource type - audio-only files
+    // go through the same pipeline as video, under resource_type: 'video'.
+    const result = await cloudinary.uploader
+      .upload(dataUri, { folder: 'sliik', resource_type: 'video' })
+      .catch(() => {
+        throw new BadRequestException('Audio upload failed');
+      });
+
+    return { url: result.secure_url };
+  }
 }
