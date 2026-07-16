@@ -16,11 +16,12 @@ export class CreateDealDto {
 
   @IsString()
   @IsNotEmpty()
-  @MaxLength(255)
+  @MaxLength(50)
   title: string;
 
   @IsString()
   @IsOptional()
+  @MaxLength(120)
   description?: string;
 
   @IsNumber()
@@ -37,4 +38,8 @@ export class CreateDealDto {
 
   @IsDateString()
   expiresAt: string;
+
+  @IsDateString()
+  @IsOptional()
+  startsAt?: string;
 }

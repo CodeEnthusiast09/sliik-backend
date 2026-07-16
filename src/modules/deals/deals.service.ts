@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, eq, gt, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, lte, or, sql } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE } from '../../db';
 import * as schema from '../../db/schema';
@@ -76,6 +76,11 @@ export class DealsService {
       throw new BadRequestException('Expiry date must be in the future');
     }
 
+    const startsAt = dto.startsAt ? new Date(dto.startsAt) : undefined;
+    if (startsAt && startsAt >= expiresAt) {
+      throw new BadRequestException('Start date must be before expiry date');
+    }
+
     const [deal] = await this.db
       .insert(sliikDeals)
       .values({
@@ -87,6 +92,7 @@ export class DealsService {
         dealPrice: dto.dealPrice.toFixed(2),
         slotsTotal: dto.slotsTotal,
         slotsRemaining: dto.slotsTotal,
+        startsAt,
         expiresAt,
       })
       .returning();
@@ -112,10 +118,12 @@ export class DealsService {
   }
 
   async getActiveDeals() {
+    const now = new Date();
     return this.db.query.sliikDeals.findMany({
       where: and(
         gt(sliikDeals.slotsRemaining, 0),
-        gt(sliikDeals.expiresAt, new Date()),
+        gt(sliikDeals.expiresAt, now),
+        or(isNull(sliikDeals.startsAt), lte(sliikDeals.startsAt, now)),
       ),
       with: { provider: { with: { portfolio: true } }, service: true },
       orderBy: (d, { asc }) => [asc(d.expiresAt)],
@@ -191,6 +199,9 @@ export class DealsService {
         }),
         ...(dto.expiresAt !== undefined && {
           expiresAt: new Date(dto.expiresAt),
+        }),
+        ...(dto.startsAt !== undefined && {
+          startsAt: dto.startsAt ? new Date(dto.startsAt) : null,
         }),
         updatedAt: new Date(),
       })

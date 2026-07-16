@@ -27,6 +27,7 @@ export const sliikDeals = pgTable('sliik_deals', {
   dealPrice: numeric('deal_price', { precision: 12, scale: 2 }).notNull(),
   slotsTotal: integer('slots_total').notNull(),
   slotsRemaining: integer('slots_remaining').notNull(),
+  startsAt: timestamp('starts_at', { withTimezone: true }),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true })
     .notNull()
