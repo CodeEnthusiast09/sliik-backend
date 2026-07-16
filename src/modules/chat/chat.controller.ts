@@ -19,6 +19,13 @@ export class ChatController {
     return successResponse('Conversations fetched', data);
   }
 
+  @Get('unread-count')
+  @Roles('customer', 'provider')
+  async getUnreadCount(@CurrentUser() user: AuthUser) {
+    const count = await this.chatService.getUnreadCount(user.id, user.role);
+    return successResponse('Unread chat count fetched', { count });
+  }
+
   @Get('booking/:bookingId/messages')
   @Roles('customer', 'provider')
   async getMessages(

@@ -132,7 +132,7 @@ export class OffersService {
         eq(sliikOffers.status, 'open'),
         canonicalCityEq(sliikOffers.city, provider.city ?? ''),
       ),
-      with: { customer: true },
+      with: { customer: true, responses: true },
       orderBy: (o, { desc }) => [desc(o.createdAt)],
     });
   }

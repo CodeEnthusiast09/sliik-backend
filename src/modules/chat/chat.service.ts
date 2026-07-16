@@ -273,6 +273,38 @@ export class ChatService {
       )
       .sort(byLastActivityDesc);
   }
+
+  async getUnreadCount(userId: string, role: string) {
+    const profile =
+      role === 'customer'
+        ? await this.getCustomerProfile(userId)
+        : await this.getProviderProfile(userId);
+
+    const rows = await this.db.query.bookings.findMany({
+      where:
+        role === 'customer'
+          ? eq(bookings.customerId, profile.id)
+          : eq(bookings.providerId, profile.id),
+      with: {
+        conversation: {
+          with: {
+            messages: {
+              where: and(
+                ne(messages.senderId, userId),
+                isNull(messages.readAt),
+              ),
+            },
+          },
+        },
+      },
+    });
+
+    return rows
+      .filter(
+        (b) => b.conversation !== null && CHATTABLE_STATUSES.includes(b.status),
+      )
+      .reduce((total, b) => total + (b.conversation?.messages.length ?? 0), 0);
+  }
 }
 
 type ConversationRow = {

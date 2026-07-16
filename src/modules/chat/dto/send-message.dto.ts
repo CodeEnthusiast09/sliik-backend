@@ -33,5 +33,6 @@ export class SendMessageDto {
   // already rendered before the round trip, instead of appending a duplicate.
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   clientId?: string;
 }
