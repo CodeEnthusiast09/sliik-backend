@@ -4,11 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { eq } from 'drizzle-orm';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE } from '../../db';
 import * as schema from '../../db/schema';
 import { providerProfiles, services } from '../../db/schema';
+import { assertCloudinaryUrl } from '../../common/utils/cloudinary.helper';
 import { CreateServiceDto } from './dto/create-service.dto';
 import { UpdateServiceDto } from './dto/update-service.dto';
 
@@ -16,7 +18,10 @@ type Db = NodePgDatabase<typeof schema>;
 
 @Injectable()
 export class ServicesService {
-  constructor(@Inject(DRIZZLE) private db: Db) {}
+  constructor(
+    @Inject(DRIZZLE) private db: Db,
+    private config: ConfigService,
+  ) {}
 
   private async getProviderProfile(userId: string) {
     const profile = await this.db.query.providerProfiles.findFirst({
@@ -29,6 +34,13 @@ export class ServicesService {
   async createService(userId: string, dto: CreateServiceDto) {
     const profile = await this.getProviderProfile(userId);
 
+    if (dto.imageUrl) {
+      assertCloudinaryUrl(
+        this.config.getOrThrow<string>('cloudinary.cloudName'),
+        dto.imageUrl,
+      );
+    }
+
     const [service] = await this.db
       .insert(services)
       .values({
@@ -37,6 +49,9 @@ export class ServicesService {
         description: dto.description,
         price: dto.price.toFixed(2),
         durationMinutes: dto.durationMinutes,
+        category: dto.category,
+        imageUrl: dto.imageUrl,
+        addOns: dto.addOns,
       })
       .returning();
 
@@ -66,6 +81,13 @@ export class ServicesService {
     if (existing.providerId !== profile.id)
       throw new ForbiddenException('Not your service');
 
+    if (dto.imageUrl) {
+      assertCloudinaryUrl(
+        this.config.getOrThrow<string>('cloudinary.cloudName'),
+        dto.imageUrl,
+      );
+    }
+
     const updates: Partial<typeof services.$inferInsert> = {
       updatedAt: new Date(),
     };
@@ -74,6 +96,9 @@ export class ServicesService {
     if (dto.price !== undefined) updates.price = dto.price.toFixed(2);
     if (dto.durationMinutes !== undefined)
       updates.durationMinutes = dto.durationMinutes;
+    if (dto.category !== undefined) updates.category = dto.category;
+    if (dto.imageUrl !== undefined) updates.imageUrl = dto.imageUrl;
+    if (dto.addOns !== undefined) updates.addOns = dto.addOns;
     if (dto.isActive !== undefined) updates.isActive = dto.isActive;
 
     const [updated] = await this.db

@@ -145,6 +145,7 @@ export class PayoutsService {
         providerId: provider.id,
         paystackSubaccountCode: data.data.subaccount_code,
         bankCode: dto.bankCode,
+        bankName: dto.bankName,
         accountNumber: dto.accountNumber,
         accountName: data.data.account_name,
         verified: true,

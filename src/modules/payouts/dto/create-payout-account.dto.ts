@@ -7,5 +7,9 @@ export class CreatePayoutAccountDto {
 
   @IsString()
   @IsNotEmpty()
+  bankName: string;
+
+  @IsString()
+  @IsNotEmpty()
   accountNumber: string;
 }

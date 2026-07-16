@@ -17,6 +17,9 @@ export const providerPayoutAccounts = pgTable('provider_payout_accounts', {
     length: 100,
   }).notNull(),
   bankCode: varchar('bank_code', { length: 20 }).notNull(),
+  // Nullable - added after payout accounts already existed in some
+  // environments, so old rows have no way to backfill a bank name.
+  bankName: varchar('bank_name', { length: 255 }),
   accountNumber: varchar('account_number', { length: 20 }).notNull(),
   accountName: varchar('account_name', { length: 255 }).notNull(),
   verified: boolean('verified').notNull().default(false),
