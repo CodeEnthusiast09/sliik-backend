@@ -10,5 +10,5 @@ export function getCanonicalCity(city: string): string {
 }
 
 export function canonicalCityEq(column: PgColumn, city: string): SQL {
-  return sql`regexp_replace(${column}, '^.*,\s*', '') = ${getCanonicalCity(city)}`;
+  return sql`lower(regexp_replace(${column}, '^.*,\s*', '')) = lower(${getCanonicalCity(city)})`;
 }

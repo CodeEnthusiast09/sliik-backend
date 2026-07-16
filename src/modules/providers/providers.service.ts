@@ -208,7 +208,11 @@ export class ProvidersService {
       sql`exists (select 1 from ${users} where ${users.id} = ${providerProfiles.userId} and ${users.isActive} = true)`,
     );
 
-    if (query.city) {
+    // Same principle as the GPS radius bypass below - a text search is a
+    // specific-target query (customer already knows who/what they want), so
+    // city shouldn't silently hide a valid name/tradeType/service match that
+    // happens to be in a different city.
+    if (query.city && !query.search) {
       conditions.push(canonicalCityEq(providerProfiles.city, query.city));
     }
     if (query.tradeType) {
@@ -222,6 +226,12 @@ export class ProvidersService {
         or(
           ilike(providerProfiles.fullName, term),
           ilike(providerProfiles.tradeType, term),
+          sql`exists (
+            select 1 from ${services}
+            where ${services.providerId} = ${providerProfiles.id}
+              and ${services.isActive} = true
+              and ${services.name} ilike ${term}
+          )`,
         )!,
       );
     }
