@@ -20,6 +20,14 @@ import { successResponse } from '../../common/utils/response.helper';
 export class FavoritesController {
   constructor(private favoritesService: FavoritesService) {}
 
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('customer')
+  async getMyFavorites(@CurrentUser() user: AuthUser) {
+    const favorites = await this.favoritesService.getMyFavorites(user.id);
+    return successResponse('Favorites fetched', favorites);
+  }
+
   @Post(':providerId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('customer')

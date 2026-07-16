@@ -14,6 +14,7 @@ import { payments } from './payments';
 import { notifications } from './notifications';
 import { devicePushTokens } from './device-push-tokens';
 import { providerPayoutAccounts } from './payouts';
+import { favorites } from './favorites';
 
 export const usersRelations = relations(users, ({ one }) => ({
   customerProfile: one(customerProfiles, {
@@ -220,3 +221,10 @@ export const providerPayoutAccountsRelations = relations(
     }),
   }),
 );
+
+export const favoritesRelations = relations(favorites, ({ one }) => ({
+  provider: one(providerProfiles, {
+    fields: [favorites.providerId],
+    references: [providerProfiles.id],
+  }),
+}));

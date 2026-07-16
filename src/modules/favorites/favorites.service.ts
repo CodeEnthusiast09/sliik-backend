@@ -38,4 +38,12 @@ export class FavoritesService {
     });
     return !!row;
   }
+
+  async getMyFavorites(customerId: string) {
+    return this.db.query.favorites.findMany({
+      where: eq(favorites.customerId, customerId),
+      with: { provider: { with: { portfolio: true } } },
+      orderBy: (f, { desc }) => [desc(f.createdAt)],
+    });
+  }
 }
