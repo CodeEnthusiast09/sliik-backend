@@ -213,17 +213,21 @@ export class ProvidersService {
     );
     conditions.push(ne(providerProfiles.tradeType, 'pending'));
 
-    // Same principle as the GPS radius bypass below - a text search is a
-    // specific-target query (customer already knows who/what they want), so
-    // city shouldn't silently hide a valid name/tradeType/service match that
-    // happens to be in a different city.
-    if (query.city && !query.search) {
+    if (query.city) {
       conditions.push(canonicalCityEq(providerProfiles.city, query.city));
     }
     if (query.tradeType) {
       // ilike with no wildcards is a case-insensitive equality check - defends
       // against pre-existing mixed-case rows even though writes now normalize.
       conditions.push(ilike(providerProfiles.tradeType, query.tradeType));
+    }
+    if (query.category) {
+      conditions.push(sql`exists (
+        select 1 from ${services}
+        where ${services.providerId} = ${providerProfiles.id}
+          and ${services.isActive} = true
+          and ${services.category} = ${query.category}
+      )`);
     }
     if (query.search) {
       const term = `%${query.search.trim()}%`;
@@ -249,11 +253,7 @@ export class ProvidersService {
     const hasLocation = query.lat !== undefined && query.lng !== undefined;
     const radiusKm = query.radiusKm ?? 10;
 
-    // A text search is a specific-target query - the customer already knows
-    // who/what they're looking for, so distance shouldn't silently exclude a
-    // valid name/tradeType match. Only constrain by radius for plain
-    // browsing (no search term).
-    if (hasLocation && !query.search) {
+    if (hasLocation) {
       const distanceExpr = sql<number>`
         6371 * acos(
           least(1.0,

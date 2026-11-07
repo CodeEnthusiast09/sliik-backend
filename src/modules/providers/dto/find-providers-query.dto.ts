@@ -1,5 +1,14 @@
-import { IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
+
+import { CATEGORY_VALUES } from '../../services/dto/create-service.dto';
 
 export class FindProvidersQueryDto {
   @IsOptional()
@@ -9,6 +18,10 @@ export class FindProvidersQueryDto {
   @IsOptional()
   @IsString()
   tradeType?: string;
+
+  @IsOptional()
+  @IsIn(CATEGORY_VALUES)
+  category?: (typeof CATEGORY_VALUES)[number];
 
   @IsOptional()
   @IsString()
