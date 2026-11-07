@@ -9,6 +9,7 @@ import {
   ilike,
   inArray,
   lt,
+  ne,
   or,
   sql,
 } from 'drizzle-orm';
@@ -84,7 +85,10 @@ export class ProvidersService {
 
   async getPublicProfile(providerId: string) {
     const profile = await this.db.query.providerProfiles.findFirst({
-      where: eq(providerProfiles.id, providerId),
+      where: and(
+        eq(providerProfiles.id, providerId),
+        ne(providerProfiles.tradeType, 'pending'),
+      ),
       with: {
         services: { where: eq(services.isActive, true) },
         portfolio: true,
@@ -207,6 +211,7 @@ export class ProvidersService {
     conditions.push(
       sql`exists (select 1 from ${users} where ${users.id} = ${providerProfiles.userId} and ${users.isActive} = true)`,
     );
+    conditions.push(ne(providerProfiles.tradeType, 'pending'));
 
     // Same principle as the GPS radius bypass below - a text search is a
     // specific-target query (customer already knows who/what they want), so

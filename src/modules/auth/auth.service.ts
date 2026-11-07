@@ -76,7 +76,7 @@ export class AuthService {
         await tx.insert(providerProfiles).values({
           userId: created.id,
           fullName: dto.fullName,
-          tradeType: dto.tradeType!,
+          tradeType: dto.tradeType || 'pending',
         });
       }
 
@@ -381,7 +381,7 @@ export class AuthService {
     appleId?: string;
     email: string;
     fullName: string;
-    role: 'customer' | 'provider';
+    role: 'customer';
     emailVerified: boolean;
   }) {
     const whereClause = params.googleId
@@ -393,6 +393,12 @@ export class AuthService {
     });
 
     if (existing) {
+      if (existing.role !== 'customer') {
+        throw new ForbiddenException(
+          'Social sign-in is only available for customer accounts',
+        );
+      }
+
       return this.buildTokenResponse(
         existing.id,
         existing.email,
@@ -410,6 +416,12 @@ export class AuthService {
     });
 
     if (byEmail) {
+      if (byEmail.role !== 'customer') {
+        throw new ForbiddenException(
+          'Social sign-in is only available for customer accounts',
+        );
+      }
+
       if (!params.emailVerified) {
         throw new UnauthorizedException(
           'Email not verified by provider; cannot link account',
@@ -441,18 +453,9 @@ export class AuthService {
         })
         .returning();
 
-      if (params.role === 'customer') {
-        await tx
-          .insert(customerProfiles)
-          .values({ userId: user.id, fullName: params.fullName });
-      } else {
-        // tradeType is 'pending' — provider completes profile in onboarding
-        await tx.insert(providerProfiles).values({
-          userId: user.id,
-          fullName: params.fullName,
-          tradeType: 'pending',
-        });
-      }
+      await tx
+        .insert(customerProfiles)
+        .values({ userId: user.id, fullName: params.fullName });
 
       return this.buildTokenResponse(user.id, user.email, user.role);
     });

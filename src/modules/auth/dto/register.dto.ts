@@ -2,6 +2,7 @@ import {
   IsEmail,
   IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
   MinLength,
   ValidateIf,
@@ -24,8 +25,8 @@ export class RegisterDto {
   fullName: string;
 
   @ValidateIf((o: RegisterDto) => o.role === 'provider')
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
